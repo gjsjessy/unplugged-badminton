@@ -6,7 +6,7 @@ replaces manual headcounts in the group chat with a real first-come,
 first-served sign-up flow, an automatic waitlist, and email notifications —
 available both as a normal web page and as a Telegram Mini App.
 
-**Live app:** https://gjsjessy.github.io/unplugged-badminton/
+**Preview:** https://gjsjessy.github.io/unplugged-badminton/
 *(also opens directly inside Telegram as a Mini App)*
 
 ---
@@ -65,9 +65,11 @@ Pages for static hosting.
 
 ## Status
 
-Live and in active use by the group. Currently gathering real usability
-feedback from players (registering, cancelling, getting promoted off the
-waitlist) before the next round of polish.
+**Under proposal — ideation and testing.** The app is built and working, but
+hasn't replaced WhatsApp sign-ups for the group yet. Right now it's about
+getting real usability feedback from players (registering, cancelling,
+getting promoted off the waitlist) before pitching it as the group's
+default.
 
 **On the radar:**
 - Registering more than one person at once for a partner or friend in a
