@@ -545,6 +545,31 @@
     @keyframes spin{to{transform:rotate(360deg);}}
     @media (prefers-reduced-motion: reduce){ .spinner{animation:none;} }
 
+    /* ---- boot overlay ----
+       Opaque, not a translucent scrim: the point is that the half-built page
+       underneath ISN'T on show. Top of the z-order so it also covers the
+       sheets and modals, and it swallows pointer events, so nothing can be
+       tapped until the app is actually ready. */
+    .boot-overlay{
+      position:fixed; inset:0; z-index:300; background:var(--bg);
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:12px; padding:24px; text-align:center;
+      transition:opacity .22s ease;
+    }
+    .boot-overlay.gone{opacity:0; pointer-events:none;}
+    .boot-mark{font-size:40px; line-height:1;}
+    .boot-name{
+      font-family:'Poppins', sans-serif; font-weight:800; font-size:19px;
+      letter-spacing:-0.01em;
+    }
+    .boot-row{
+      display:flex; align-items:center; gap:9px;
+      font-size:13px; color:var(--muted); font-weight:600;
+    }
+    /* The spinner is tiny and grey by default (it's used inline elsewhere);
+       give it a bit more presence when it's the only thing on screen. */
+    .boot-row .spinner{width:16px; height:16px; border-top-color:var(--accent);}
+
     .drawer-section-title{
       font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
       color:var(--muted); margin:2px 0 10px;
@@ -719,6 +744,24 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
+  <!--
+    Shown while the app finds its feet. It is plain markup, not something
+    JavaScript creates, so it is painted on the very first frame — before any
+    script has run, let alone a 2-5 second call to the server. That closes
+    the window where the app looked like an empty page you could tap around
+    in, and where a tap on Telegram sign-in could land before the button
+    meant anything.
+
+    finishBoot() removes it. That is called on EVERY boot path, including the
+    failures, and behind a timeout — an overlay you can't dismiss is a worse
+    bug than the one it fixes.
+  -->
+  <div class="boot-overlay" id="bootOverlay">
+    <div class="boot-mark">🏸</div>
+    <div class="boot-name">Unplugged Badminton</div>
+    <div class="boot-row"><span class="spinner"></span><span id="bootMsg">Loading…</span></div>
+  </div>
+
   <!-- carries ?reset=<token> from a password-reset email into the page -->
   <div id="bootData" data-reset-token="<?= resetToken ?>" hidden></div>
 
@@ -1445,6 +1488,42 @@
       else google.script.run.withSuccessHandler(onOk).withFailureHandler(onErr).logIn(payload);
     });
 
+    // ===================== boot overlay =====================
+    /**
+     * Takes the loading overlay down. Safe to call as often as you like, and
+     * it MUST be called on every path out of boot — success, failure, and
+     * the odd ones in between. A stuck overlay is a dead app, so this is
+     * also armed with a timeout below rather than trusting the happy path.
+     */
+    var bootFinished = false;
+    function finishBoot(){
+      if (bootFinished) return;
+      bootFinished = true;
+      var el = document.getElementById('bootOverlay');
+      if (!el) return;
+      el.classList.add('gone');
+      // Taken out of the document after the fade, so it can never sit there
+      // invisibly swallowing taps.
+      setTimeout(function(){ if (el.parentNode) el.parentNode.removeChild(el); }, 260);
+    }
+    function setBootMsg(text){
+      if (bootFinished) return;
+      var el = document.getElementById('bootMsg');
+      if (el) el.textContent = text;
+    }
+    /**
+     * The backstop. This backend routinely takes seconds and occasionally
+     * never answers; without this, one hung request would leave the person
+     * staring at a spinner with no way past it. Better to show them the app,
+     * even half-loaded, than to trap them.
+     */
+    setTimeout(function(){
+      if (!bootFinished){
+        setBootMsg('Still trying…');
+        finishBoot();
+      }
+    }, 12000);
+
     // ===================== Telegram sign-in =====================
     // TG.initData is a SIGNED blob. The page never trusts it and never reads
     // the user out of it — it just forwards it, and the server verifies the
@@ -1520,18 +1599,29 @@
      * the saved-for-later win from cutting the duplicate is real.)
      */
     function tgAutoLogin(){
-      if (!insideTelegram){ refresh(); return; }
+      if (!insideTelegram){ refresh(false, finishBoot); return; }
+      setBootMsg('Signing you in with Telegram…');
       google.script.run
         .withSuccessHandler(function(res){
-          if (!res){ refresh(); return; }
-          if (res.needsLink){ showTelegramLink(res.telegram); refresh(); return; }
+          if (!res){ refresh(false, finishBoot); return; }
+          if (res.needsLink){
+            // Reveal the form BEFORE lifting the overlay, so the first thing
+            // visible is the finished screen rather than a flash of the
+            // ordinary login behind it.
+            showTelegramLink(res.telegram);
+            finishBoot();
+            refresh(true);
+            return;
+          }
           loginSucceeded(res); // refreshes internally
+          finishBoot();
         })
         .withFailureHandler(function(err){
           // Telegram sign-in not configured, or verification failed. Say so
           // once and leave the ordinary email login working.
+          finishBoot();
           showToast(err.message, true);
-          refresh();
+          refresh(true);
         })
         .logInWithTelegram(TG_DATA);
     }
@@ -3071,16 +3161,18 @@
         // alongside it was a whole extra round trip for information already
         // on its way.
         refresh(false, function(recognised){
-          if (recognised) return;
+          if (recognised){ finishBoot(); return; }
           // Saved login is stale. Inside Telegram we can quietly get a fresh
-          // one; in a browser the login button is already right there.
+          // one — so the overlay stays up for that second leg rather than
+          // flashing the logged-out screen and then the signed-in one.
           clearToken(); TOKEN = '';
-          if (insideTelegram) tgAutoLogin();
+          if (insideTelegram){ tgAutoLogin(); return; }
+          finishBoot();
         });
       } else if (insideTelegram){
         tgAutoLogin(); // refreshes once it resolves — see tgAutoLogin's own comment
       } else {
-        refresh();
+        refresh(false, finishBoot);
         // The Telegram SDK is here but the launch carried no signed data.
         // Silence would look exactly like the sign-in prompt disappearing,
         // so name it — reopening the app is usually all it takes.
