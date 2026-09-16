@@ -103,6 +103,11 @@
     .btn-text:hover{background:var(--line);}
     .btn-danger-text{background:none; border:none; color:var(--danger); font-weight:700; padding:3px 7px; font-size:11.5px; border-radius:6px; flex-shrink:0;}
     .btn-danger-text:hover{background:var(--danger-soft);}
+    .btn-quiet{background:transparent; color:var(--muted); border:1.5px solid var(--line);
+      padding:8px 14px; font-size:13px;}
+    .btn-quiet:hover{background:var(--line);}
+    .btn-danger{background:var(--danger); color:#fff; padding:8px 14px; font-size:13px;}
+    .btn-danger:hover{filter:brightness(1.12);}
     .btn:disabled{opacity:.5; cursor:not-allowed;}
     .link-btn{background:none; border:none; color:var(--accent); font-weight:700; font-size:13px; padding:0; text-decoration:underline;}
 
@@ -320,7 +325,46 @@
     input:focus, select:focus, textarea:focus{outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent);}
     .row2{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
     .row3{display:grid; grid-template-columns:1fr 0.8fr 1fr; gap:8px;}
-    @media (max-width:430px){ .row3{grid-template-columns:1fr 1fr;} }
+
+    /* ---- touch targets ----
+       16px is the threshold: below it, iOS Safari zooms the whole page when a
+       field takes focus, which is what makes the date and time pickers feel
+       broken and half-off-screen on a phone. Keyed off pointer type so a
+       tablet in landscape (wider than any width breakpoint) gets it too, and
+       repeated by width below in case a webview reports no pointer type.
+       Checkboxes are excluded — they'd be stretched into rectangles. */
+    @media (pointer:coarse){
+      input:not([type="checkbox"]):not([type="radio"]),
+      select, textarea{font-size:16px; padding:12px; min-height:46px;}
+      textarea{min-height:88px;}
+      .btn{padding:13px 18px; min-height:46px;}
+      .btn-text, .btn-quiet, .btn-danger{min-height:42px;}
+      .tab{min-height:44px;}
+      .modal-close{min-height:40px; padding:0 4px;}
+      .slot-row .slot-remove{min-width:38px; min-height:42px;}
+      .add-slot{min-height:46px;}
+    }
+
+    /* ---- narrow forms ----
+       At 16px the three time fields can no longer sit side by side, so start
+       and end pair up and duration spans the row beneath them. This is about
+       the MODAL's width (capped at 460px), not the screen's, which is why it
+       also helps on a tablet. */
+    @media (max-width:640px){
+      input:not([type="checkbox"]):not([type="radio"]),
+      select, textarea{font-size:16px;}
+      .row2, .row3{gap:10px;}
+      .row3{grid-template-columns:1fr 1fr;}
+      .row3 > .field:nth-child(2){grid-column:1 / -1; order:3;}
+      /* native date/time controls carry an intrinsic width and will overflow
+         their column rather than shrink into it */
+      input[type="date"], input[type="time"], input[type="number"]{min-width:0;}
+    }
+    /* below this even two columns squeezes the date field */
+    @media (max-width:380px){
+      .row2, .row3{grid-template-columns:1fr;}
+      .row3 > .field:nth-child(2){order:0;}
+    }
     .hint{font-size:11.5px; color:var(--muted);}
     .form-err{font-size:12.5px; color:var(--danger); display:none;}
 
@@ -391,7 +435,10 @@
     }
     .drawer-head h2{margin:0; font-size:18px; font-weight:800;}
     .drawer-head .sub{font-size:12px; color:var(--muted); margin-top:2px;}
-    .drawer-tabs{display:flex; gap:4px; padding:12px 18px 0; border-bottom:1.5px solid var(--line);}
+    /* Tabs split the drawer's full width rather than bunching on the left —
+       matches the main tab bar, and gives each a thumb-sized target. */
+    .drawer-tabs{display:flex; gap:0; padding:12px 18px 0; border-bottom:1.5px solid var(--line);}
+    .drawer-tabs .tab{flex:1 1 0; text-align:center; justify-content:center; padding:9px 4px;}
     .drawer-body{padding:16px 18px 30px; overflow-y:auto; flex:1;}
     .loading-block{display:flex; flex-direction:column; gap:10px; padding-top:4px;}
     .skel{
@@ -478,6 +525,24 @@
     .tg-who .avatar{width:36px; height:36px; border-radius:50%; background:var(--slate); color:#fff;
       display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; flex:0 0 auto;}
     .tg-who b{font-size:14px;} .tg-who span{display:block; font-size:12px; color:var(--muted);}
+    .tg-cases{margin:0 0 12px; padding:0; list-style:none; display:grid; gap:7px;}
+    .tg-cases li{font-size:12.5px; line-height:1.5; color:var(--muted);
+      padding-left:11px; border-left:2px solid var(--line);}
+    .tg-cases b{color:var(--ink); display:block;}
+
+    /* ---- linked account row (My details) ---- */
+    .linked-account{margin-top:16px; padding-top:14px; border-top:1px solid var(--line);}
+    .linked-head{font-size:11.5px; font-weight:700; letter-spacing:.04em;
+      text-transform:uppercase; color:var(--muted); margin-bottom:8px;}
+    .linked-body{display:flex; align-items:center; gap:12px; justify-content:space-between;}
+    .linked-who{display:flex; align-items:center; gap:10px; min-width:0;}
+    .linked-mark{width:30px; height:30px; border-radius:50%; background:var(--slate); color:#fff;
+      display:flex; align-items:center; justify-content:center; font-size:14px; flex:0 0 auto;}
+    .linked-who b{font-size:13.5px; display:block; overflow-wrap:anywhere;}
+    .linked-who .hint{display:block; font-size:11.5px; line-height:1.4;}
+    .linked-confirm{margin-top:12px; padding:12px; border-radius:10px; background:var(--danger-soft);}
+    .linked-confirm .hint{color:var(--danger); font-weight:600; margin:0 0 10px;}
+    .linked-confirm-actions{display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;}
   </style>
   <!--
     Telegram Mini App bridge. Harmless in a normal browser: the script simply
@@ -571,11 +636,20 @@
           <div class="avatar" id="tgAvatar">T</div>
           <div><b id="tgName">Telegram user</b><span id="tgHandle"></span></div>
         </div>
-        <p class="hint" style="margin:0 0 10px;">
-          First time here. Enter your email and password — if you've used this
-          app before we'll link Telegram to that account, otherwise we'll set
-          one up.
+        <p class="hint" style="margin:0 0 4px;">
+          Telegram recognises you, but it isn't connected to a player yet.
         </p>
+        <ul class="tg-cases">
+          <li>
+            <b>Signed up with your email before?</b>
+            Enter that same email and password and we'll connect Telegram to
+            it — your games and history stay exactly as they are.
+          </li>
+          <li>
+            <b>New here?</b>
+            Just choose an email and password now and we'll set you up.
+          </li>
+        </ul>
         <form id="tgForm">
           <div class="field">
             <label for="tg_name">Your name</label>
@@ -588,7 +662,7 @@
           <div class="field">
             <label for="tg_password">Password</label>
             <input type="password" id="tg_password" autocomplete="current-password" required>
-            <span class="hint">New here? This sets your password — you can use it to log in from a browser too.</span>
+            <span class="hint">If you're new, this becomes your password — handy for signing in from a browser.</span>
           </div>
           <p class="form-err" id="tgErr"></p>
           <button class="btn btn-primary" type="submit" id="tgSubmit"
@@ -659,6 +733,31 @@
         <p class="form-err" id="profileErr"></p>
         <button class="btn btn-primary" type="submit" style="width:100%; justify-content:center;">Save changes</button>
       </form>
+
+      <div class="linked-account" id="pfTelegramRow" hidden>
+        <div class="linked-head">Telegram</div>
+        <div class="linked-body">
+          <div class="linked-who">
+            <span class="linked-mark">✈</span>
+            <div>
+              <b id="pfTgHandle">Linked</b>
+              <span class="hint" id="pfTgNote">Opening the app from Telegram signs you in automatically.</span>
+            </div>
+          </div>
+          <button type="button" class="btn btn-quiet" id="pfTgUnlink">Unlink</button>
+        </div>
+        <div class="linked-confirm" id="pfTgConfirm" hidden>
+          <p class="hint" id="pfTgConfirmText">
+            Unlink Telegram? You'll sign in with your email and password after this.
+          </p>
+          <div class="linked-confirm-actions">
+            <button type="button" class="btn btn-quiet" id="pfTgCancel">Keep it</button>
+            <button type="button" class="btn btn-danger" id="pfTgConfirmBtn">Yes, unlink</button>
+          </div>
+        </div>
+        <p class="form-err" id="pfTgErr"></p>
+      </div>
+
       <div class="auth-switch">To change your password, log out and use “Forgot your password?”.</div>
     </div>
   </div>
@@ -886,8 +985,48 @@
       clearTimeout(showToast._h);
       showToast._h = setTimeout(function(){ t.className = 'toast'; }, 4600);
     }
-    function openModal(id){ document.getElementById(id).classList.add('open'); }
-    function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+    /**
+     * Stops the page behind an overlay from scrolling.
+     *
+     * Without this you get two scrollbars — the overlay's own, plus the
+     * session list still scrolling underneath it — and on a phone a swipe
+     * often moves the wrong one.
+     *
+     * Counted rather than a flag, because overlays stack (the auth modal can
+     * open on top of the drawer). Closing the top one must not hand scrolling
+     * back while the one underneath is still up.
+     */
+    var SCROLL_LOCKS = 0;
+    function lockPageScroll(){
+      if (++SCROLL_LOCKS > 1) return;
+      // Removing the scrollbar widens the viewport and shifts the whole page
+      // sideways; pad by exactly the width that disappeared. Zero on phones
+      // and anywhere with overlay scrollbars, so this is a no-op there.
+      var gap = window.innerWidth - document.documentElement.clientWidth;
+      document.body.style.overflow = 'hidden';
+      if (gap > 0) document.body.style.paddingRight = gap + 'px';
+    }
+    function unlockPageScroll(){
+      if (SCROLL_LOCKS === 0) return;
+      if (--SCROLL_LOCKS > 0) return;
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+    }
+
+    // Both guard against a double open/close: the count has to match the
+    // number of overlays actually on screen, or scrolling gets stuck off.
+    function openModal(id){
+      var el = document.getElementById(id);
+      if (el.classList.contains('open')) return;
+      el.classList.add('open');
+      lockPageScroll();
+    }
+    function closeModal(id){
+      var el = document.getElementById(id);
+      if (!el.classList.contains('open')) return;
+      el.classList.remove('open');
+      unlockPageScroll();
+    }
     function showErr(id, msg){ var el = document.getElementById(id); el.textContent = msg; el.style.display = 'block'; }
     function hideErr(id){ document.getElementById(id).style.display = 'none'; }
     /**
@@ -915,7 +1054,9 @@
       btn.addEventListener('click', function(){ closeModal(btn.getAttribute('data-close')); });
     });
     document.querySelectorAll('.modal-backdrop').forEach(function(bd){
-      bd.addEventListener('click', function(e){ if (e.target === bd) bd.classList.remove('open'); });
+      // Via closeModal, not classList directly — otherwise the scroll lock
+      // is never released and the page stays frozen.
+      bd.addEventListener('click', function(e){ if (e.target === bd) closeModal(bd.id); });
     });
 
     // ================= auth =================
@@ -933,6 +1074,9 @@
       };
       document.getElementById('authTitle').textContent = titles[mode];
       document.getElementById('authBlurb').textContent = blurbs[mode];
+      // showTelegramLink hides this; restore it so an ordinary login later in
+      // the session isn't left with a missing blurb.
+      document.getElementById('authBlurb').hidden = false;
       document.getElementById('authNotice').hidden = true;
 
       document.getElementById('authNameField').hidden = !signup;
@@ -1088,6 +1232,11 @@
         var el = document.getElementById(id);
         if (el) el.hidden = true;
       });
+      // "Log in" reads wrong here — many people seeing this are signing up
+      // for the first time. The generic blurb goes too: the panel below
+      // explains both cases better than it can.
+      document.getElementById('authTitle').textContent = 'One more step';
+      document.getElementById('authBlurb').hidden = true;
     }
 
     /**
@@ -1186,7 +1335,78 @@
       document.getElementById('pf_name').value = STATE.user.name || '';
       document.getElementById('pf_email').value = STATE.user.email || '';
       document.getElementById('pf_phone').value = STATE.user.phone || '';
+      renderLinkedTelegram();
       openModal('profileBackdrop');
+    });
+
+    /**
+     * Shows the linked Telegram account read-only. The handle isn't editable
+     * because it isn't ours to edit — it comes from Telegram, and changing it
+     * there flows back in on the next sign-in.
+     */
+    function renderLinkedTelegram(){
+      var row = document.getElementById('pfTelegramRow');
+      if (!row) return;
+      var u = STATE.user || {};
+      hideErr('pfTgErr');
+      document.getElementById('pfTgConfirm').hidden = true;
+
+      if (!u.telegramLinked){
+        // Nothing linked: say so only where it's actionable, i.e. inside
+        // Telegram, where linking is one sign-out away. In a plain browser
+        // the row would just be a dead end, so it stays hidden.
+        if (!insideTelegram){ row.hidden = true; return; }
+        row.hidden = false;
+        document.getElementById('pfTgHandle').textContent = 'Not linked';
+        document.getElementById('pfTgNote').textContent =
+          'Log out and reopen the app from Telegram to link it.';
+        document.getElementById('pfTgUnlink').hidden = true;
+        return;
+      }
+
+      row.hidden = false;
+      document.getElementById('pfTgHandle').textContent =
+        u.telegramUsername ? '@' + u.telegramUsername : 'Linked';
+      var unlinkBtn = document.getElementById('pfTgUnlink');
+
+      // Unlinking is only safe if an email+password way in already exists.
+      // The server refuses otherwise; this keeps the button from offering
+      // something that would just error.
+      var canUnlink = u.hasPassword && u.hasRealEmail;
+      unlinkBtn.hidden = !canUnlink;
+      document.getElementById('pfTgNote').textContent = canUnlink
+        ? 'Opening the app from Telegram signs you in automatically.'
+        : 'Set a password before unlinking — it\'s currently your only way in.';
+      document.getElementById('pfTgConfirmText').textContent = insideTelegram
+        ? 'Unlink Telegram? You\'ll need your email and password to sign in, ' +
+          'including in here.'
+        : 'Unlink Telegram? You\'ll sign in with your email and password after this.';
+    }
+
+    document.getElementById('pfTgUnlink').addEventListener('click', function(){
+      hideErr('pfTgErr');
+      document.getElementById('pfTgConfirm').hidden = false;
+    });
+    document.getElementById('pfTgCancel').addEventListener('click', function(){
+      document.getElementById('pfTgConfirm').hidden = true;
+    });
+    document.getElementById('pfTgConfirmBtn').addEventListener('click', function(){
+      var btn = this;
+      btn.disabled = true;
+      hideErr('pfTgErr');
+      google.script.run
+        .withSuccessHandler(function(user){
+          btn.disabled = false;
+          setUser(user);
+          renderLinkedTelegram();
+          showToast('Telegram unlinked.');
+        })
+        .withFailureHandler(function(err){
+          btn.disabled = false;
+          document.getElementById('pfTgConfirm').hidden = true;
+          if (!handleAuthError(err)) showErr('pfTgErr', err.message);
+        })
+        .unlinkTelegram(TOKEN);
     });
 
     document.getElementById('profileForm').addEventListener('submit', function(e){
@@ -1228,17 +1448,25 @@
     function openDrawer(tab){
       if (!STATE.user){ openAuth('login'); return; }
       STATE.drawerTab = tab || STATE.drawerTab;
-      document.getElementById('drawer').classList.add('open');
-      document.getElementById('drawer').setAttribute('aria-hidden', 'false');
+      var drawer = document.getElementById('drawer');
+      // Re-opening an already-open drawer (tapping My games while it's up)
+      // must not take a second scroll lock.
+      var wasOpen = drawer.classList.contains('open');
+      drawer.classList.add('open');
+      drawer.setAttribute('aria-hidden', 'false');
       document.getElementById('drawerBackdrop').classList.add('open');
+      if (!wasOpen) lockPageScroll();
       syncDrawerTabs();
       paintDrawer();          // instant if we already have data
       refreshPanelQuietly();  // then quietly bring it up to date
     }
     function closeDrawer(){
-      document.getElementById('drawer').classList.remove('open');
-      document.getElementById('drawer').setAttribute('aria-hidden', 'true');
+      var drawer = document.getElementById('drawer');
+      if (!drawer.classList.contains('open')) return;
+      drawer.classList.remove('open');
+      drawer.setAttribute('aria-hidden', 'true');
       document.getElementById('drawerBackdrop').classList.remove('open');
+      unlockPageScroll();
     }
     function drawerIsOpen(){ return document.getElementById('drawer').classList.contains('open'); }
     document.getElementById('drawerClose').addEventListener('click', closeDrawer);
