@@ -1,0 +1,2093 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Unplugged Badminton</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      /* Palette lifted from ipasg.com (IPA Singapore): red-600 CTAs, slate-grey
+         secondary buttons, near-black text on white/zinc grounds, Poppins type. */
+      --bg:#F4F4F5;
+      --surface:#FFFFFF;
+      --ink:#18181B;
+      --muted:#52525B;
+      --line:#E4E4E7;
+      --accent:#DC2626;
+      --accent-ink:#B91C1C;
+      --accent-soft:#FEF2F2;
+      --slate:#404357;
+      --success:#15803D;
+      --success-soft:#F0FDF4;
+      --gold:#B8860B;
+      --gold-soft:#FBF1DA;
+      --danger:#991B1B;
+      --danger-soft:#FEE2E2;
+      --shadow: 0 1px 2px rgba(24,24,27,.06), 0 8px 24px -12px rgba(24,24,27,.18);
+      --radius: 14px;
+      /* 12px on a phone, growing to exactly 120px at 1440px, capped there */
+      --gutter: clamp(10px, calc(10.29vw - 28.1px), 120px);
+    }
+    @media (prefers-color-scheme: dark){
+      :root:not([data-theme="light"]){
+        --bg:#18181B; --surface:#26262A; --ink:#FAFAFA; --muted:#A1A1AA;
+        --line:#3F3F46; --accent:#F05252; --accent-ink:#FCA5A5;
+        --accent-soft:#3A1A1A; --slate:#71717A; --success:#4ADE80; --success-soft:#0F2A18;
+        --gold:#E8B23D; --gold-soft:#2E2712;
+        --danger:#F87171; --danger-soft:#3F1414;
+        --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+      }
+    }
+    :root[data-theme="dark"]{
+      --bg:#18181B; --surface:#26262A; --ink:#FAFAFA; --muted:#A1A1AA;
+      --line:#3F3F46; --accent:#F05252; --accent-ink:#FCA5A5;
+      --accent-soft:#3A1A1A; --slate:#71717A; --success:#4ADE80; --success-soft:#0F2A18;
+      --gold:#E8B23D; --gold-soft:#2E2712;
+      --danger:#F87171; --danger-soft:#3F1414;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+    }
+    *{box-sizing:border-box;}
+    /* Author display rules (e.g. .btn{display:inline-flex}) otherwise beat the
+       browser's default [hidden] rule, leaving "hidden" elements on screen. */
+    [hidden]{display:none !important;}
+    body{
+      margin:0; background:var(--bg); color:var(--ink);
+      font-family:'Poppins', system-ui, sans-serif;
+      padding-block: 0 56px;
+      padding-inline: var(--gutter);
+    }
+    /* fills the viewport up to 1920 (1920 - 2x120 gutters), then holds */
+    .wrap{max-width:1680px; margin:0 auto;}
+
+    /* Header + tabs stay put while the list scrolls, so the account,
+       New session and the tabs are always reachable. The negative margin
+       lets its background bleed into the page gutters. */
+    .appbar{
+      position:sticky; top:0; z-index:50; background:var(--bg);
+      margin-inline:calc(-1 * var(--gutter)); padding-inline:var(--gutter);
+      padding-top:16px;
+    }
+    @media (min-width:641px){
+      .appbar{border-bottom:1.5px solid var(--line);}
+    }
+    /* the account control always sits in the top-right corner; New session
+       hangs below it on desktop and goes full width on a phone. */
+    .topbar{
+      display:grid; grid-template-columns:1fr auto auto;
+      grid-template-areas:"brand new auth";
+      align-items:start; gap:8px 12px; margin-bottom:12px;
+    }
+    .brand{grid-area:brand; min-width:0;}
+    .new-slot{grid-area:new;}
+    .auth-slot{grid-area:auth;}
+    .brand h1{
+      font-family:'Poppins', sans-serif; font-weight:800;
+      font-size:clamp(21px,3.2vw,28px); margin:0 0 2px; letter-spacing:-0.01em;
+    }
+    .brand p{margin:0; color:var(--muted); font-size:12.5px; line-height:1.45; max-width:62ch;}
+    button{font-family:inherit; cursor:pointer;}
+    .btn{
+      border:none; border-radius:10px; padding:11px 18px; font-weight:700;
+      font-size:14px; display:inline-flex; align-items:center; gap:8px;
+    }
+    .btn-primary{background:var(--accent); color:#fff;}
+    .btn-primary:hover{background:var(--accent-ink);}
+    .btn-ghost{background:transparent; color:var(--accent); border:1.5px solid var(--accent);}
+    .btn-slate{background:var(--slate); color:#fff;}
+    .btn-slate:hover{filter:brightness(1.14);}
+    .btn-text{background:none; border:none; color:var(--muted); font-weight:600; padding:6px 8px; font-size:12.5px; border-radius:8px; flex-shrink:0;}
+    .btn-text:hover{background:var(--line);}
+    .btn-danger-text{background:none; border:none; color:var(--danger); font-weight:700; padding:3px 7px; font-size:11.5px; border-radius:6px; flex-shrink:0;}
+    .btn-danger-text:hover{background:var(--danger-soft);}
+    .btn:disabled{opacity:.5; cursor:not-allowed;}
+    .link-btn{background:none; border:none; color:var(--accent); font-weight:700; font-size:13px; padding:0; text-decoration:underline;}
+
+    /* ---- account menu ---- */
+    .account{position:relative;}
+    .account-btn{
+      display:inline-flex; align-items:center; gap:8px; background:var(--surface);
+      border:1.5px solid var(--line); border-radius:999px; padding:6px 12px 6px 6px;
+      font-weight:700; font-size:13.5px; color:var(--ink);
+    }
+    .account-btn:hover{border-color:var(--accent);}
+    .avatar{
+      width:26px; height:26px; border-radius:50%; background:var(--accent); color:#fff;
+      display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800;
+      flex-shrink:0;
+    }
+    .account-menu{
+      position:absolute; right:0; top:calc(100% + 6px); min-width:210px; z-index:40;
+      background:var(--surface); border:1px solid var(--line); border-radius:12px;
+      box-shadow:var(--shadow); padding:6px; display:none;
+    }
+    .account-menu.open{display:block;}
+    .account-menu .who{padding:8px 10px 10px; border-bottom:1px solid var(--line); margin-bottom:6px;}
+    .account-menu .who b{display:block; font-size:13.5px;}
+    .account-menu .who span{font-size:11.5px; color:var(--muted); word-break:break-all;}
+    .account-menu button{
+      display:flex; align-items:center; gap:9px; width:100%; text-align:left; background:none;
+      border:none; padding:9px 10px; border-radius:8px; font-size:13.5px; font-weight:600; color:var(--ink);
+    }
+    .account-menu button:hover{background:var(--bg);}
+    .account-menu button.danger{color:var(--danger);}
+
+    /* ---- tabs ---- */
+    .tabbar{
+      display:flex; align-items:flex-end; justify-content:space-between; gap:12px;
+      flex-wrap:wrap;
+    }
+    /* flush with the content edge; the active underline meets the appbar rule */
+    .tabs{display:flex; gap:22px; margin-bottom:-1.5px;}
+    .tabs .tab{flex:0 0 auto; padding:9px 0;}
+    .tab{
+      background:none; border:none; padding:10px 14px; font-weight:700; font-size:14px;
+      color:var(--muted); border-bottom:2.5px solid transparent; margin-bottom:-1.5px;
+      white-space:nowrap;
+    }
+    @media (max-width:480px){
+      .tab{font-size:13px; padding:9px 7px;}
+    }
+    .tab:hover{color:var(--ink);}
+    .tab.active{color:var(--accent); border-bottom-color:var(--accent);}
+    .tab .count{font-weight:600; opacity:.7;}
+
+    /* quick filters */
+    .filters{display:flex; gap:8px; flex-wrap:wrap; padding-bottom:7px;}
+
+    /* ---- narrow viewports (tablet / phone) ---- */
+    @media (max-width:640px){
+      .topbar{
+        grid-template-columns:1fr auto;
+        grid-template-areas:"brand auth" "new new";
+      }
+      /* once you start scrolling, drop the tagline so the pinned header
+         gives the list back as much of the screen as possible */
+      .appbar.compact{padding-top:10px;}
+      .appbar.compact .brand p{display:none;}
+      .appbar.compact .brand h1{font-size:19px;}
+      .appbar.compact .topbar{margin-bottom:8px;}
+      .new-slot{justify-self:stretch;}
+      .new-slot .btn{width:100%; justify-content:center;}
+      /* just the avatar circle — no name, no caret */
+      .account-label, .account-caret{display:none;}
+      .account-btn{padding:5px; border-radius:50%;}
+      .avatar{width:32px; height:32px; font-size:13px;}
+      #loginBtn{padding:9px 14px; font-size:13px;}
+
+      /* tabs split the full width, and the chip moves below the rule */
+      .tabbar{display:block;}
+      .tabs{border-bottom:1.5px solid var(--line); margin-bottom:0; gap:0;}
+      .tabs .tab{flex:1 1 0; text-align:center; padding:9px 4px;}
+      .filters{padding:10px 0 12px;}
+    }
+    .chip{
+      background:var(--surface); border:1.5px solid var(--line); color:var(--muted);
+      border-radius:999px; padding:7px 14px; font-size:12.5px; font-weight:700;
+      display:inline-flex; align-items:center; gap:6px;
+    }
+    .chip:hover{border-color:var(--muted); color:var(--ink);}
+    .chip[aria-pressed="true"]{background:var(--ink); border-color:var(--ink); color:var(--bg);}
+    .chip .chip-count{font-weight:600; opacity:.75;}
+
+    .grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(300px,1fr)); gap:16px;}
+    .card{
+      background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+      box-shadow:var(--shadow); padding:18px; display:flex; flex-direction:column; gap:12px;
+      /* fixed so switching to the Waitlist tab never resizes the card */
+      height:510px;
+    }
+    .card.is-past{opacity:.72;}
+    .card.is-cancelled{border-color:var(--danger);}
+    .card-head{display:flex; justify-content:space-between; gap:10px; align-items:flex-start;}
+    .when .date{font-weight:700; font-size:16px;}
+    .when .time{color:var(--muted); font-size:13px; font-variant-numeric:tabular-nums;}
+    .when .date.struck{text-decoration:line-through; text-decoration-thickness:1.5px;}
+    .pill{
+      font-size:11.5px; font-weight:700; padding:4px 10px; border-radius:999px;
+      white-space:nowrap; letter-spacing:.02em; background:var(--line); color:var(--muted);
+    }
+    .pill-open{background:var(--success-soft); color:var(--success);}
+    .pill-full{background:var(--danger-soft); color:var(--danger);}
+    .pill-cancelled{background:var(--danger-soft); color:var(--danger);}
+    /* organiser · price · level — always one line; the name truncates first */
+    .meta{display:flex; flex-wrap:nowrap; align-items:center; gap:10px; font-size:13px;
+      color:var(--muted); min-width:0;}
+    .meta b{color:var(--ink); font-weight:600;}
+    .meta .m-organiser{flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+    .meta .m-price{flex:0 0 auto; white-space:nowrap;}
+
+    /* the whole location block is the map link */
+    .place{
+      display:flex; flex-direction:column; gap:2px; text-decoration:none; color:inherit;
+      border-radius:10px; padding:7px 9px; margin:0 -9px;
+      background:var(--bg); transition:background .12s ease;
+    }
+    .place:hover{background:var(--accent-soft);}
+    .place:hover .place-name{color:var(--accent-ink);}
+    .place:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+    .place-name{font-size:15px; font-weight:700; line-height:1.3; overflow-wrap:anywhere;}
+    .place-ext{color:var(--accent); font-size:12px; font-weight:700;}
+
+    /* Rosters scroll inside a fixed area (~8 rows) so a busy session never
+       makes its card tower over the others in the row. */
+    /* takes whatever space the fixed-height card has left, and scrolls */
+    .roster-scroll{
+      flex:1 1 auto; min-height:0; overflow-y:auto;
+      padding-right:2px;
+    }
+    .roster-scroll::-webkit-scrollbar{width:6px;}
+    .roster-scroll::-webkit-scrollbar-thumb{background:var(--line); border-radius:99px;}
+
+    /* owner-only ⋯ menu */
+    .kebab-wrap{position:relative; flex-shrink:0;}
+    .kebab{
+      background:none; border:none; color:var(--muted); font-size:20px; line-height:1;
+      padding:2px 6px; border-radius:8px; font-weight:700;
+    }
+    .kebab:hover{background:var(--bg); color:var(--ink);}
+    .kebab-menu{
+      position:absolute; right:0; top:calc(100% + 4px); z-index:30; min-width:190px;
+      background:var(--surface); border:1px solid var(--line); border-radius:10px;
+      box-shadow:var(--shadow); padding:5px; display:none;
+    }
+    .kebab-menu.open{display:block;}
+    .kebab-menu button{
+      display:block; width:100%; text-align:left; background:none; border:none;
+      padding:9px 10px; border-radius:7px; font-size:13px; font-weight:600; color:var(--ink);
+    }
+    .kebab-menu button:hover{background:var(--bg);}
+    .kebab-menu button.danger{color:var(--danger);}
+    .kebab-menu button.danger:hover{background:var(--danger-soft);}
+    .level-tag{
+      font-size:11px; font-weight:700; background:var(--bg); color:var(--muted);
+      border:1px solid var(--line); padding:2px 8px; border-radius:999px;
+      flex:0 0 auto; white-space:nowrap;
+    }
+    .reason-box{
+      background:var(--danger-soft); color:var(--danger); border-radius:10px;
+      padding:9px 11px; font-size:12.5px; line-height:1.45;
+    }
+    .progress-row{display:flex; align-items:center; gap:10px;}
+    .progress{flex:1; height:7px; background:var(--line); border-radius:99px; overflow:hidden;}
+    .progress > i{display:block; height:100%; background:var(--accent); border-radius:99px;}
+    .progress-label{font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap;}
+
+    .roster-list{list-style:none; margin:0; padding:0;}
+    .roster-list li{
+      display:flex; align-items:center; justify-content:space-between; gap:8px;
+      font-size:13.5px; padding:3px 2px; border-bottom:1px solid var(--line);
+      /* uniform compact rows, so ~6 names fit and the Cancel button
+         doesn't make some rows taller than others */
+      min-height:34px;
+    }
+    .roster-list li:last-child{border-bottom:none;}
+    /* number stays put; the name wraps inside its own block beside it */
+    .roster-list .who{display:flex; align-items:baseline; gap:8px; min-width:0; flex:1;}
+    .roster-list .num{color:var(--muted); font-variant-numeric:tabular-nums; width:1.4em; flex-shrink:0;}
+    .roster-list .name-block{display:flex; align-items:baseline; flex-wrap:wrap; gap:1px 6px; min-width:0;}
+    .roster-list .lvl{
+      font-size:10px; font-weight:700; color:var(--muted); letter-spacing:.03em;
+      border:1px solid var(--line); border-radius:999px; padding:1px 6px; flex-shrink:0;
+    }
+    /* full names matter on a roster — wrap rather than truncate */
+    .roster-list .name{overflow-wrap:anywhere;}
+    .empty-row{font-size:13px; color:var(--muted); font-style:italic; padding:4px 8px;}
+    .closed-note{font-size:13px; color:var(--muted); text-align:center; padding:13px 18px;
+      border:1px dashed var(--line); border-radius:10px; background:var(--bg);}
+
+    /* segmented tabs inside a card: Confirmed | Waitlist */
+    .card-tabs{display:flex; gap:3px; background:var(--bg); border-radius:10px; padding:3px;}
+    .card-tab{
+      flex:1; background:none; border:none; padding:7px 6px; border-radius:8px;
+      font-size:11.5px; font-weight:700; color:var(--muted); letter-spacing:.02em;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .card-tab:hover:not(.active){color:var(--ink);}
+    .card-tab.active{background:var(--surface); color:var(--ink); box-shadow:0 1px 2px rgba(24,24,27,.10);}
+
+    .card-actions{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:auto; padding-top:2px;}
+    .field{display:flex; flex-direction:column; gap:4px;}
+    .field label{font-size:12px; font-weight:600; color:var(--muted);}
+    input, select, textarea{
+      font-family:inherit; font-size:14px; padding:9px 10px; border-radius:8px;
+      border:1.5px solid var(--line); background:var(--surface); color:var(--ink); width:100%;
+    }
+    textarea{resize:vertical; min-height:70px;}
+    input:focus, select:focus, textarea:focus{outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent);}
+    .row2{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+    .row3{display:grid; grid-template-columns:1fr 0.8fr 1fr; gap:8px;}
+    @media (max-width:430px){ .row3{grid-template-columns:1fr 1fr;} }
+    .hint{font-size:11.5px; color:var(--muted);}
+    .form-err{font-size:12.5px; color:var(--danger); display:none;}
+
+    .slot-row{display:flex; gap:8px; align-items:flex-end;}
+    .slot-row .field{flex:1; min-width:0;}
+    .slot-row .slot-remove{
+      background:none; border:none; color:var(--muted); font-size:16px; font-weight:700;
+      padding:8px 6px; border-radius:8px; line-height:1;
+    }
+    .slot-row .slot-remove:hover{background:var(--danger-soft); color:var(--danger);}
+    .slot-row .slot-spacer{display:block; width:28px; flex-shrink:0;}
+    #j_selfName{
+      background:var(--bg); color:var(--ink); font-weight:600;
+      border-style:dashed; cursor:default;
+    }
+    #selfBlock.excluded .slot-row{opacity:.45;}
+    #selfBlock.excluded #j_selfName{text-decoration:line-through;}
+    .opt-out{
+      display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted);
+      font-weight:600; padding:8px 0 2px; cursor:pointer;
+    }
+    .opt-out input{width:auto; margin:0; accent-color:var(--accent);}
+    .add-slot{
+      background:none; border:1.5px dashed var(--line); color:var(--muted); font-weight:600;
+      font-size:13px; padding:9px 12px; border-radius:10px; width:100%;
+    }
+    .add-slot:hover{border-color:var(--accent); color:var(--accent);}
+    .add-slot:disabled{opacity:.45; cursor:not-allowed;}
+
+    .modal-backdrop{
+      position:fixed; inset:0; background:rgba(16,16,18,.55); display:none;
+      align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto; z-index:60;
+    }
+    .modal-backdrop.open{display:flex;}
+    .modal{
+      background:var(--surface); border-radius:16px; padding:22px; width:100%; max-width:460px;
+      box-shadow:var(--shadow); display:flex; flex-direction:column; gap:12px;
+    }
+    .modal h2{font-family:'Poppins', sans-serif; font-weight:700; margin:0; font-size:19px;}
+    .modal-close{align-self:flex-end; background:none; border:none; color:var(--muted); font-size:13px; font-weight:600; white-space:nowrap;}
+    form{display:flex; flex-direction:column; gap:10px;}
+    .auth-switch{font-size:12.5px; color:var(--muted); text-align:center;}
+    .notice{
+      background:var(--success-soft); color:var(--success); border-radius:10px;
+      padding:10px 12px; font-size:12.5px; line-height:1.5;
+    }
+    .notice b{font-weight:700; overflow-wrap:anywhere;}
+
+    /* ---- side drawer ---- */
+    .drawer-backdrop{
+      position:fixed; inset:0; background:rgba(16,16,18,.45); z-index:70;
+      opacity:0; pointer-events:none; transition:opacity .18s ease;
+    }
+    .drawer-backdrop.open{opacity:1; pointer-events:auto;}
+    .drawer{
+      position:fixed; top:0; right:0; bottom:0; width:min(440px, 100%); z-index:71;
+      background:var(--surface); border-left:1px solid var(--line);
+      box-shadow:-12px 0 40px -20px rgba(0,0,0,.4);
+      transform:translateX(102%); transition:transform .22s ease;
+      display:flex; flex-direction:column;
+    }
+    .drawer.open{transform:translateX(0);}
+    @media (prefers-reduced-motion: reduce){
+      .drawer, .drawer-backdrop{transition:none;}
+    }
+    .drawer-head{
+      padding:16px 18px 0; display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+    }
+    .drawer-head h2{margin:0; font-size:18px; font-weight:800;}
+    .drawer-head .sub{font-size:12px; color:var(--muted); margin-top:2px;}
+    .drawer-tabs{display:flex; gap:4px; padding:12px 18px 0; border-bottom:1.5px solid var(--line);}
+    .drawer-body{padding:16px 18px 30px; overflow-y:auto; flex:1;}
+    .loading-block{display:flex; flex-direction:column; gap:10px; padding-top:4px;}
+    .skel{
+      background:var(--bg); border-radius:12px; height:96px;
+      animation:pulse 1.1s ease-in-out infinite;
+    }
+    .skel.short{height:64px;}
+    @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:.5;}}
+    @media (prefers-reduced-motion: reduce){ .skel{animation:none;} }
+    .loading-label{
+      display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); font-weight:600;
+    }
+    .spinner{
+      width:14px; height:14px; border:2px solid var(--line); border-top-color:var(--muted);
+      border-radius:50%; animation:spin .7s linear infinite; flex-shrink:0;
+    }
+    @keyframes spin{to{transform:rotate(360deg);}}
+    @media (prefers-reduced-motion: reduce){ .spinner{animation:none;} }
+
+    .drawer-section-title{
+      font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
+      color:var(--muted); margin:2px 0 10px;
+    }
+    .drawer-section + .drawer-section{margin-top:22px; padding-top:18px; border-top:1px solid var(--line);}
+    .dg{
+      background:var(--bg); border-radius:12px; padding:12px 13px; display:flex;
+      flex-direction:column; gap:8px; margin-bottom:10px;
+    }
+    .dg.cancelled{background:var(--danger-soft);}
+    .dg-top{display:flex; justify-content:space-between; gap:10px; align-items:flex-start;}
+    .dg-when{font-weight:700; font-size:13.5px;}
+    .dg-meta{font-size:12px; color:var(--muted); line-height:1.5;}
+    .dg-attendees{display:flex; flex-direction:column; gap:5px;}
+    .dg-att{
+      display:flex; align-items:center; justify-content:space-between; gap:8px;
+      background:var(--surface); border-radius:8px; padding:6px 9px; font-size:12.5px;
+    }
+    .dg-att .nm{display:flex; align-items:center; gap:7px; min-width:0;}
+    .dg-att .nm b{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+    .mini{font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:999px; white-space:nowrap;}
+    .mini.confirmed{background:var(--success-soft); color:var(--success);}
+    .mini.waitlist{background:var(--gold-soft); color:var(--gold);}
+    .cal-link{
+      display:inline-flex; align-items:center; gap:6px; align-self:flex-start;
+      font-size:12px; font-weight:700; color:var(--accent); text-decoration:none;
+      background:var(--surface); border:1.5px solid var(--line); border-radius:8px; padding:6px 10px;
+    }
+    .cal-link:hover{border-color:var(--accent); background:var(--accent-soft);}
+    .count-chip{
+      font-size:11px; font-weight:700; background:var(--slate); color:#fff;
+      padding:3px 9px; border-radius:999px; white-space:nowrap;
+    }
+
+    .toast{
+      position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+      background:var(--ink); color:var(--bg); padding:11px 18px; border-radius:10px;
+      font-size:13.5px; box-shadow:var(--shadow); opacity:0; pointer-events:none;
+      transition:opacity .2s ease, transform .2s ease; z-index:100; max-width:90vw; text-align:center;
+    }
+    .toast.show{opacity:1; transform:translateX(-50%) translateY(-4px);}
+    .toast.err{background:var(--danger);}
+
+    .empty-state{
+      text-align:center; padding:48px 20px; color:var(--muted); font-size:14px;
+      border:1.5px dashed var(--line); border-radius:var(--radius);
+    }
+    .location-results{
+      position:absolute; top:100%; left:0; right:0; z-index:10; margin-top:4px;
+      background:var(--surface); border:1.5px solid var(--line); border-radius:10px;
+      box-shadow:var(--shadow); max-height:220px; overflow-y:auto; display:none;
+    }
+    .location-results.open{display:block;}
+    .location-results button{
+      display:block; width:100%; text-align:left; background:none; border:none;
+      padding:9px 11px; font-size:13px; color:var(--ink); border-bottom:1px solid var(--line);
+    }
+    .location-results button:last-child{border-bottom:none;}
+    .location-results button:hover{background:var(--accent-soft);}
+    .map-link{color:var(--accent); text-decoration:none; font-weight:600;}
+    .map-link:hover{text-decoration:underline;}
+    .tg-panel{border:1px solid var(--line); border-radius:12px; padding:14px; background:var(--bg);
+      margin-bottom:14px;}
+    .tg-who{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+    .tg-who .avatar{width:36px; height:36px; border-radius:50%; background:var(--slate); color:#fff;
+      display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; flex:0 0 auto;}
+    .tg-who b{font-size:14px;} .tg-who span{display:block; font-size:12px; color:var(--muted);}
+    .tg-choices{display:flex; flex-direction:column; gap:8px;}
+  </style>
+  <!--
+    Telegram Mini App bridge. Harmless in a normal browser: the script simply
+    isn't there, window.Telegram stays undefined, and the page falls back to
+    email + password. Loaded from telegram.org because Telegram requires it —
+    it is the only way to receive initData.
+  -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+  <!-- carries ?reset=<token> from a password-reset email into the page -->
+  <div id="bootData" data-reset-token="" hidden></div>
+
+  <div class="wrap">
+   <div class="appbar">
+    <div class="topbar">
+      <div class="brand">
+        <h1>🏸 Unplugged Badminton</h1>
+        <p>IPA Singapore community badminton — all levels welcome, bring a friend.</p>
+      </div>
+      <div class="new-slot">
+        <button class="btn btn-primary" id="openNewSession">+ New session</button>
+      </div>
+      <div class="auth-slot">
+        <button class="btn btn-slate" id="loginBtn">Log in</button>
+        <div class="account" id="accountWrap" hidden>
+          <button class="account-btn" id="accountBtn">
+            <span class="avatar" id="accountAvatar">?</span>
+            <span class="account-label" id="accountName">Account</span>
+            <span class="account-caret" aria-hidden="true">▾</span>
+          </button>
+          <div class="account-menu" id="accountMenu">
+            <div class="who"><b id="menuName"></b><span id="menuEmail"></span></div>
+            <button id="menuMyGames">🎽 My games</button>
+            <button id="menuMySessions">📋 My sessions</button>
+            <button id="menuMyDetails">⚙️ My details</button>
+            <button id="menuLogout" class="danger">Log out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tabbar">
+      <div class="tabs" id="tabs">
+        <button class="tab active" data-tab="open" id="tabOpen">Open sessions</button>
+        <button class="tab" data-tab="closed" id="tabClosed">Closed sessions</button>
+      </div>
+      <div class="filters" id="filters">
+        <button class="chip" id="chipAvailable" aria-pressed="false">Available slots</button>
+      </div>
+    </div>
+   </div>
+
+    <div id="sessionsArea" style="padding-top:18px;">
+      <div class="empty-state">Loading sessions…</div>
+    </div>
+  </div>
+
+  <!-- ===== side drawer: my games / my sessions ===== -->
+  <div class="drawer-backdrop" id="drawerBackdrop"></div>
+  <aside class="drawer" id="drawer" aria-hidden="true">
+    <div class="drawer-head">
+      <div>
+        <h2 id="drawerTitle">My games</h2>
+        <div class="sub" id="drawerSub"></div>
+      </div>
+      <button class="modal-close" id="drawerClose" style="align-self:flex-start;">Close ✕</button>
+    </div>
+    <div class="drawer-tabs">
+      <button class="tab active" id="drawerTabGames">My games</button>
+      <button class="tab" id="drawerTabSessions">My sessions</button>
+    </div>
+    <div class="drawer-body" id="drawerBody"></div>
+  </aside>
+
+  <!-- ===== auth modal: log in / sign up / forgot / reset ===== -->
+  <div class="modal-backdrop" id="authBackdrop">
+    <div class="modal">
+      <button class="modal-close" data-close="authBackdrop">Close ✕</button>
+      <h2 id="authTitle">Log in</h2>
+      <p class="hint" id="authBlurb">Your account keeps track of the games you've joined and the sessions you post.</p>
+      <div class="notice" id="authNotice" hidden></div>
+
+      <!-- Shown only when the app was opened from Telegram and this Telegram
+           account isn't attached to a player yet. -->
+      <div class="tg-panel" id="tgPanel" hidden>
+        <div class="tg-who">
+          <div class="avatar" id="tgAvatar">T</div>
+          <div><b id="tgName">Telegram user</b><span id="tgHandle"></span></div>
+        </div>
+        <p class="hint" id="tgBlurb" style="margin:0 0 10px;">
+          First time here. Link this Telegram account once and you'll be signed in
+          automatically from now on.
+        </p>
+        <div class="tg-choices">
+          <button type="button" class="btn btn-primary" id="tgNewBtn"
+            style="width:100%; justify-content:center;">Create my player</button>
+          <button type="button" class="btn btn-ghost" id="tgLinkBtn"
+            style="width:100%; justify-content:center;">I already have an account</button>
+        </div>
+      </div>
+      <form id="authForm">
+        <div class="field" id="authNameField" hidden>
+          <label for="au_name">Your name</label>
+          <input type="text" id="au_name" autocomplete="name">
+          <span class="hint">This is the name that shows on rosters.</span>
+        </div>
+        <div class="field" id="authEmailField">
+          <label for="au_email">Email</label>
+          <input type="email" id="au_email" autocomplete="email">
+        </div>
+        <div class="field" id="authPhoneField" hidden>
+          <label for="au_phone">Phone <span class="hint">(optional)</span></label>
+          <input type="text" id="au_phone" autocomplete="tel">
+        </div>
+        <div class="field" id="authCodeField" hidden>
+          <label for="au_code">Reset code</label>
+          <input type="text" id="au_code" autocomplete="off" placeholder="Paste the code from your email">
+        </div>
+        <div class="field" id="authPasswordField">
+          <label for="au_password" id="authPwLabel">Password</label>
+          <input type="password" id="au_password" autocomplete="current-password">
+          <span class="hint" id="authPwHint"></span>
+        </div>
+        <div class="field" id="authPassword2Field" hidden>
+          <label for="au_password2">Confirm new password</label>
+          <input type="password" id="au_password2" autocomplete="new-password">
+        </div>
+        <p class="form-err" id="authErr"></p>
+        <button class="btn btn-primary" type="submit" id="authSubmit" style="width:100%; justify-content:center;">Log in</button>
+      </form>
+      <div class="auth-switch" id="authForgotRow">
+        <button class="link-btn" id="authForgot">Forgot your password?</button>
+      </div>
+      <div class="auth-switch" id="authSwap">
+        <span id="authSwitchText">New here?</span>
+        <button class="link-btn" id="authSwitch">Create an account</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== my details ===== -->
+  <div class="modal-backdrop" id="profileBackdrop">
+    <div class="modal">
+      <button class="modal-close" data-close="profileBackdrop">Close ✕</button>
+      <h2>My details</h2>
+      <p class="hint">Changing your name updates it on games still to come; past games keep the name you played under.</p>
+      <form id="profileForm">
+        <div class="field">
+          <label for="pf_name">Name</label>
+          <input type="text" id="pf_name" autocomplete="name" required>
+          <span class="hint">This is what shows on rosters.</span>
+        </div>
+        <div class="field">
+          <label for="pf_email">Email</label>
+          <input type="email" id="pf_email" autocomplete="email" required>
+          <span class="hint">Used to log in and to send your confirmations.</span>
+        </div>
+        <div class="field">
+          <label for="pf_phone">Phone <span class="hint">(optional)</span></label>
+          <input type="text" id="pf_phone" autocomplete="tel">
+        </div>
+        <p class="form-err" id="profileErr"></p>
+        <button class="btn btn-primary" type="submit" style="width:100%; justify-content:center;">Save changes</button>
+      </form>
+      <div class="auth-switch">To change your password, log out and use “Forgot your password?”.</div>
+    </div>
+  </div>
+
+  <!-- ===== new session modal ===== -->
+  <div class="modal-backdrop" id="sessionModalBackdrop">
+    <div class="modal">
+      <button class="modal-close" data-close="sessionModalBackdrop">Close ✕</button>
+      <h2>Post a new session</h2>
+      <p class="hint" id="sessionOwnerNote"></p>
+      <form id="sessionForm">
+        <div class="row2">
+          <div class="field"><label for="s_date">Date</label><input type="date" id="s_date" required></div>
+          <div class="field"><label for="s_court">Court</label><input type="text" id="s_court" placeholder="Court 4" required></div>
+        </div>
+        <div class="row3">
+          <div class="field"><label for="s_start">Start time</label><input type="time" id="s_start" required></div>
+          <div class="field">
+            <label for="s_duration">Duration (hrs)</label>
+            <input type="number" id="s_duration" min="0.5" max="12" step="0.5" value="2">
+          </div>
+          <div class="field"><label for="s_end">End time</label><input type="time" id="s_end" required></div>
+        </div>
+        <span class="hint">Set the duration and the end time fills itself in — or type the end time and the duration updates.</span>
+        <div class="field" style="position:relative;">
+          <label for="s_location">Location</label>
+          <input type="text" id="s_location" placeholder="Search a place — e.g. Bishan Community Centre" autocomplete="off" required>
+          <div class="location-results" id="locationResults"></div>
+          <input type="hidden" id="s_locationAddress">
+          <span class="hint" id="addrCaption">Search and pick a place — the name fills in here (edit it however you like) and the full address is saved for the map link.</span>
+        </div>
+        <div class="row2">
+          <div class="field"><label for="s_price">Price per pax ($)</label><input type="number" min="0" step="0.5" id="s_price"></div>
+          <div class="field"><label for="s_pax">Pax required</label><input type="number" min="1" step="1" id="s_pax" required></div>
+        </div>
+        <div class="field">
+          <label for="s_level">Level</label>
+          <select id="s_level"></select>
+        </div>
+        <p class="form-err" id="sessionFormErr"></p>
+        <button class="btn btn-primary" type="submit" style="width:100%; justify-content:center;">Post session</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== join modal ===== -->
+  <div class="modal-backdrop" id="joinModalBackdrop">
+    <div class="modal">
+      <button class="modal-close" data-close="joinModalBackdrop">Close ✕</button>
+      <h2 id="joinModalTitle">Join session</h2>
+      <form id="joinForm">
+        <input type="hidden" id="j_sessionId">
+
+        <div id="selfBlock">
+          <div class="slot-row">
+            <div class="field">
+              <label for="j_selfName">You</label>
+              <input type="text" id="j_selfName" readonly tabindex="-1">
+            </div>
+            <div class="field" style="max-width:135px;">
+              <label for="j_selfLevel">Your level</label>
+              <select id="j_selfLevel"></select>
+            </div>
+            <span class="slot-spacer" aria-hidden="true"></span>
+          </div>
+          <label class="opt-out" for="j_excludeSelf">
+            <input type="checkbox" id="j_excludeSelf">
+            <span>I'm not playing — just adding guests</span>
+          </label>
+        </div>
+
+        <p class="hint" id="alreadyInNote" hidden>You're already in this game. Add a guest below.</p>
+
+        <div id="slotsWrap"></div>
+        <button type="button" class="add-slot" id="addSlot">+ Add a guest</button>
+        <span class="hint" id="slotHint"></span>
+        <p class="form-err" id="joinFormErr"></p>
+        <button class="btn btn-primary" type="submit" style="width:100%; justify-content:center;">Confirm sign-up</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== owner: cancel session ===== -->
+  <div class="modal-backdrop" id="cancelSessionBackdrop">
+    <div class="modal">
+      <button class="modal-close" data-close="cancelSessionBackdrop">Close ✕</button>
+      <h2>Cancel this session</h2>
+      <p class="hint" id="cancelSessionLabel"></p>
+      <form id="cancelSessionForm">
+        <input type="hidden" id="cs_sessionId">
+        <div class="field">
+          <label for="cs_reason">Why is it cancelled?</label>
+          <textarea id="cs_reason" placeholder="e.g. Court booking got voided by the school — sorry!" required></textarea>
+          <span class="hint">Everyone signed up gets emailed this reason.</span>
+        </div>
+        <p class="form-err" id="cancelSessionErr"></p>
+        <button class="btn btn-primary" type="submit" style="width:100%; justify-content:center;">Cancel session &amp; notify everyone</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== owner: reinstate session ===== -->
+  <div class="modal-backdrop" id="reactivateBackdrop">
+    <div class="modal">
+      <button class="modal-close" data-close="reactivateBackdrop">Close ✕</button>
+      <h2>Put this session back on</h2>
+      <p class="hint" id="reactivateLabel"></p>
+      <form id="reactivateForm">
+        <input type="hidden" id="ra_sessionId">
+        <p class="hint">Everyone who was signed up keeps their place and gets emailed that it's on again.</p>
+        <p class="form-err" id="reactivateErr"></p>
+        <button class="btn btn-primary" type="submit" style="width:100%; justify-content:center;">Reinstate &amp; notify everyone</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ============================================================
+    // ⬇⬇  THE ONE LINE TO EDIT IN THE TELEGRAM-HOSTED COPY  ⬇⬇
+    //
+    // Leave it empty in the copy you paste into Apps Script — served from
+    // there, the page talks to the server directly and ignores this.
+    //
+    // In the copy you upload to your static host (Cloudflare Pages, GitHub
+    // Pages…), paste your Apps Script /exec URL between the quotes. That is
+    // how the Telegram-hosted page reaches your Sheet.
+    var API_URL = 'https://script.google.com/macros/s/AKfycbwIDxRqxfzVjls0WN3Wl4KIOyzHm48jKYk0O9xYP2tb44iKvRr8CL_3aQHfPjLBU5sa/exec';
+    // ⬆⬆  nothing else differs between the two copies  ⬆⬆
+    // ============================================================
+
+    /**
+     * Served by Apps Script, google.script.run already exists and is used as
+     * before. Served from anywhere else it doesn't exist, so this stands in
+     * for it — same shape, same call sites, so nothing below had to change.
+     */
+    (function installApiShim(){
+      if (window.google && window.google.script && window.google.script.run) return;
+      function call(fn, args){
+        if (!API_URL){
+          // Nothing to talk to — this copy was uploaded without its API_URL
+          // filled in. Say that plainly rather than leaving a blank page.
+          return Promise.reject(new Error(
+            'This copy of the app is missing its API_URL — see the top of the file.'));
+        }
+        return fetch(API_URL, {
+          method: 'POST',
+          // text/plain deliberately: it keeps this a "simple" cross-origin
+          // request so the browser sends no OPTIONS preflight, which Apps
+          // Script has no way to answer. The body is still JSON.
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ fn: fn, args: args }),
+          redirect: 'follow'
+        }).then(function(r){ return r.text(); }).then(function(text){
+          var data;
+          try { data = JSON.parse(text); }
+          catch (e) { throw new Error('Couldn\'t reach the server — try again in a moment.'); }
+          if (data.error) throw new Error(data.error);
+          return data.result;
+        });
+      }
+
+      // Rebuilt on each .withXHandler() call so the chain stays immutable,
+      // exactly like the real google.script.run.
+      function runner(ok, fail){
+        return new Proxy({}, { get: function(target, name){
+          if (name === 'withSuccessHandler') return function(f){ return runner(f, fail); };
+          if (name === 'withFailureHandler') return function(f){ return runner(ok, f); };
+          if (name === 'withUserObject') return function(){ return runner(ok, fail); };
+          return function(){
+            call(name, Array.prototype.slice.call(arguments)).then(
+              function(res){ if (ok) ok(res); },
+              function(err){ if (fail) fail(err); else console.error(err); }
+            );
+          };
+        }});
+      }
+
+      window.google = { script: { run: runner(null, null) } };
+    })();
+
+    var STATE = {
+      sessions: [], playerLevels: [], sessionLevels: [], maxSlots: 4,
+      user: null, tab: 'open', drawerTab: 'games', filterAvailable: false
+    };
+    var AUTH_MODE = 'login';
+    /** Which roster tab each card is showing, kept across refreshes. */
+    var CARD_TAB = {};
+
+    // ---------- token storage ----------
+    function loadToken(){ try { return localStorage.getItem('badmintonToken') || ''; } catch(e){ return ''; } }
+    function saveToken(t){ try { localStorage.setItem('badmintonToken', t); } catch(e){} }
+    function clearToken(){ try { localStorage.removeItem('badmintonToken'); } catch(e){} }
+    var TOKEN = loadToken();
+
+    // ---------- small helpers ----------
+    function esc(s){
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+      });
+    }
+    function levelAbbr(l){
+      var m = { 'Beginner':'Beg', 'Intermediate':'Int', 'Advanced':'Adv' };
+      return l ? (m[l] || l) : '';
+    }
+    /** Short level label so the meta row always fits on one line. */
+    function levelShort(l){
+      var m = {
+        'Open to all':'All levels', 'Beginner':'Beginner', 'Intermediate':'Intermediate',
+        'Advanced':'Advanced', 'Intermediate & Advanced':'Int/Adv'
+      };
+      return l ? (m[l] || l) : '';
+    }
+    function initials(name){
+      var parts = String(name || '').trim().split(/\s+/);
+      return ((parts[0] || '?')[0] + (parts.length > 1 ? parts[parts.length-1][0] : '')).toUpperCase();
+    }
+    function showToast(msg, isErr){
+      var t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = 'toast show' + (isErr ? ' err' : '');
+      clearTimeout(showToast._h);
+      showToast._h = setTimeout(function(){ t.className = 'toast'; }, 4600);
+    }
+    function openModal(id){ document.getElementById(id).classList.add('open'); }
+    function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+    function showErr(id, msg){ var el = document.getElementById(id); el.textContent = msg; el.style.display = 'block'; }
+    function hideErr(id){ document.getElementById(id).style.display = 'none'; }
+    /**
+     * Today in SINGAPORE, not in whoever's browser this is. Used as the
+     * earliest date the New session picker will accept, so an organiser
+     * posting from another timezone gets the same floor as everyone else.
+     * Singapore is UTC+8 and has never used daylight saving.
+     */
+    function todayStr(){
+      var sg = new Date(Date.now() + 8 * 60 * 60 * 1000);
+      var p = function(n){ return String(n).padStart(2,'0'); };
+      return sg.getUTCFullYear() + '-' + p(sg.getUTCMonth()+1) + '-' + p(sg.getUTCDate());
+    }
+    /** Any server error mentioning an expired session means: log out cleanly. */
+    function handleAuthError(err){
+      if (/log in again/i.test(err.message)){
+        setUser(null); clearToken(); TOKEN = '';
+        showToast('Your login expired — please log in again.', true);
+        return true;
+      }
+      return false;
+    }
+
+    document.querySelectorAll('[data-close]').forEach(function(btn){
+      btn.addEventListener('click', function(){ closeModal(btn.getAttribute('data-close')); });
+    });
+    document.querySelectorAll('.modal-backdrop').forEach(function(bd){
+      bd.addEventListener('click', function(e){ if (e.target === bd) bd.classList.remove('open'); });
+    });
+
+    // ================= auth =================
+    var RESET_TOKEN = '';
+
+    function setAuthMode(mode){
+      AUTH_MODE = mode;
+      var signup = mode === 'signup', forgot = mode === 'forgot', reset = mode === 'reset';
+      var titles = { login:'Log in', signup:'Create your account', forgot:'Forgot your password?', reset:'Set a new password' };
+      var blurbs = {
+        login: 'Log in to join games, book for friends, or post a session.',
+        signup: 'One account for the whole club: join games, book slots for friends, and post your own sessions.',
+        forgot: 'Enter your email and we\'ll send you a link to set a new password. The link works once and expires in an hour.',
+        reset: 'Pick a new password. You\'ll be signed out on any other device.'
+      };
+      document.getElementById('authTitle').textContent = titles[mode];
+      document.getElementById('authBlurb').textContent = blurbs[mode];
+      document.getElementById('authNotice').hidden = true;
+
+      document.getElementById('authNameField').hidden = !signup;
+      document.getElementById('authPhoneField').hidden = !signup;
+      document.getElementById('authEmailField').hidden = reset;
+      document.getElementById('authPasswordField').hidden = forgot;
+      document.getElementById('authPassword2Field').hidden = !reset;
+      document.getElementById('authCodeField').hidden = !(reset && !RESET_TOKEN);
+      document.getElementById('authForgotRow').hidden = !(mode === 'login');
+
+      document.getElementById('au_name').required = signup;
+      document.getElementById('au_email').required = !reset;
+      document.getElementById('au_password').required = !forgot;
+      document.getElementById('au_password2').required = reset;
+      document.getElementById('au_code').required = reset && !RESET_TOKEN;
+
+      document.getElementById('authPwLabel').textContent = reset ? 'New password' : 'Password';
+      document.getElementById('au_password').setAttribute('autocomplete',
+        (signup || reset) ? 'new-password' : 'current-password');
+      document.getElementById('authPwHint').textContent = (signup || reset)
+        ? 'At least 6 characters. Please don\'t reuse an important password — this is a club app, not a bank.'
+        : '';
+
+      var submitLabels = { login:'Log in', signup:'Create account', forgot:'Send reset link', reset:'Save new password' };
+      document.getElementById('authSubmit').textContent = submitLabels[mode];
+
+      var switchText = document.getElementById('authSwitchText');
+      var switchBtn = document.getElementById('authSwitch');
+      if (signup){ switchText.textContent = 'Already have an account?'; switchBtn.textContent = 'Log in instead'; }
+      else if (forgot || reset){ switchText.textContent = 'Remembered it?'; switchBtn.textContent = 'Back to log in'; }
+      else { switchText.textContent = 'New here?'; switchBtn.textContent = 'Create an account'; }
+      hideErr('authErr');
+    }
+
+    function openAuth(mode){
+      document.getElementById('authForm').reset();
+      setAuthMode(mode || 'login');
+      openModal('authBackdrop');
+      var focusId = mode === 'signup' ? 'au_name' : (mode === 'reset' ? (RESET_TOKEN ? 'au_password' : 'au_code') : 'au_email');
+      setTimeout(function(){ document.getElementById(focusId).focus(); }, 60);
+    }
+
+    document.getElementById('loginBtn').addEventListener('click', function(){ openAuth('login'); });
+    document.getElementById('authForgot').addEventListener('click', function(){
+      var typed = document.getElementById('au_email').value.trim();
+      setAuthMode('forgot');
+      if (typed) document.getElementById('au_email').value = typed;
+    });
+    document.getElementById('authSwitch').addEventListener('click', function(){
+      if (AUTH_MODE === 'signup') setAuthMode('login');
+      else if (AUTH_MODE === 'forgot' || AUTH_MODE === 'reset') setAuthMode('login');
+      else setAuthMode('signup');
+    });
+
+    function loginSucceeded(res){
+      TOKEN = res.token; saveToken(TOKEN);
+      setUser(res.user);
+      closeModal('authBackdrop');
+      document.getElementById('authForm').reset();
+      showToast('Hi ' + res.user.name.split(' ')[0] + ' 👋');
+      refresh(true);
+    }
+
+    document.getElementById('authForm').addEventListener('submit', function(e){
+      e.preventDefault();
+      var btn = document.getElementById('authSubmit');
+      hideErr('authErr');
+
+      var email = document.getElementById('au_email').value.trim();
+      var password = document.getElementById('au_password').value;
+
+      if (AUTH_MODE === 'reset'){
+        var confirmPw = document.getElementById('au_password2').value;
+        if (password !== confirmPw){ showErr('authErr', 'The two passwords don\'t match.'); return; }
+        var token = RESET_TOKEN || document.getElementById('au_code').value.trim();
+        if (!token){ showErr('authErr', 'Paste the reset code from your email.'); return; }
+        btn.disabled = true;
+        google.script.run
+          .withSuccessHandler(function(res){
+            btn.disabled = false;
+            RESET_TOKEN = '';
+            showToast('Password updated — you\'re logged in.');
+            loginSucceeded(res);
+          })
+          .withFailureHandler(function(err){ btn.disabled = false; showErr('authErr', err.message); })
+          .resetPassword({ token: token, password: password });
+        return;
+      }
+
+      if (AUTH_MODE === 'forgot'){
+        btn.disabled = true;
+        google.script.run
+          .withSuccessHandler(function(){
+            btn.disabled = false;
+            var notice = document.getElementById('authNotice');
+            notice.innerHTML = '📧 If there\'s an account for <b>' + esc(email) + '</b>, a reset link is on its way. ' +
+              'It expires in an hour. Check spam if you don\'t see it.';
+            notice.hidden = false;
+            setAuthMode('reset');
+            notice.hidden = false;
+            document.getElementById('authBlurb').textContent =
+              'Open the link in the email, or paste the code from it below.';
+          })
+          .withFailureHandler(function(err){ btn.disabled = false; showErr('authErr', err.message); })
+          .requestPasswordReset({ email: email });
+        return;
+      }
+
+      btn.disabled = true;
+      var payload = {
+        name: document.getElementById('au_name').value.trim(),
+        email: email,
+        phone: document.getElementById('au_phone').value.trim(),
+        password: password
+      };
+      var onOk = function(res){ btn.disabled = false; loginSucceeded(res); };
+      var onErr = function(err){ btn.disabled = false; showErr('authErr', err.message); };
+
+      // Opened from Telegram and they chose "I already have an account": the
+      // same email + password form attaches this Telegram account instead of
+      // starting an ordinary session. One time only — after this it's silent.
+      if (TG_LINK_MODE && insideTelegram){
+        google.script.run
+          .withSuccessHandler(function(res){
+            btn.disabled = false;
+            TG_LINK_MODE = false;
+            document.getElementById('tgPanel').hidden = true;
+            document.getElementById('authSubmit').textContent = 'Log in';
+            loginSucceeded(res);
+            showToast('Linked — Telegram will sign you in from now on.');
+          })
+          .withFailureHandler(onErr)
+          .linkTelegramToAccount(TG_DATA, { email: email, password: password });
+        return;
+      }
+
+      if (AUTH_MODE === 'signup') google.script.run.withSuccessHandler(onOk).withFailureHandler(onErr).signUp(payload);
+      else google.script.run.withSuccessHandler(onOk).withFailureHandler(onErr).logIn(payload);
+    });
+
+    // ===================== Telegram sign-in =====================
+    // TG.initData is a SIGNED blob. The page never trusts it and never reads
+    // the user out of it — it just forwards it, and the server verifies the
+    // signature with the bot token before believing a word of it.
+    var TG = (window.Telegram && window.Telegram.WebApp) || null;
+    var TG_DATA = (TG && TG.initData) ? String(TG.initData) : '';
+    var insideTelegram = !!TG_DATA;
+
+    function tgInit(){
+      if (!TG) return;
+      try {
+        TG.ready();          // tell Telegram the page has painted
+        TG.expand();         // use the full sheet height, not the small one
+      } catch (e) {}
+    }
+
+    /** Offer the link/create choice for a Telegram account we don't know yet. */
+    function showTelegramLink(tg){
+      TG_PENDING = tg;
+      document.getElementById('tgAvatar').textContent = initials(tg.name);
+      document.getElementById('tgName').textContent = tg.name;
+      document.getElementById('tgHandle').textContent = tg.username ? '@' + tg.username : '';
+      document.getElementById('tgPanel').hidden = false;
+      openAuth('login');
+      // The email form stays available underneath, but collapsed by default so
+      // the two Telegram buttons are the obvious path.
+      setTelegramFormVisible(false);
+    }
+
+    function setTelegramFormVisible(show){
+      ['authForm', 'authSwap', 'authForgotRow'].forEach(function(id){
+        var el = document.getElementById(id);
+        if (el) el.hidden = !show;
+      });
+    }
+
+    var TG_PENDING = null;
+
+    function tgAutoLogin(){
+      if (!insideTelegram) return;
+      google.script.run
+        .withSuccessHandler(function(res){
+          if (!res) return;
+          if (res.needsLink){ showTelegramLink(res.telegram); return; }
+          loginSucceeded(res);
+        })
+        .withFailureHandler(function(err){
+          // Telegram sign-in not configured, or verification failed. Say so
+          // once and leave the ordinary email login working.
+          showToast(err.message, true);
+          setTelegramFormVisible(true);
+        })
+        .logInWithTelegram(TG_DATA);
+    }
+
+    function wireTelegramButtons(){
+      var newBtn = document.getElementById('tgNewBtn');
+      var linkBtn = document.getElementById('tgLinkBtn');
+      if (!newBtn || !linkBtn) return;
+
+      newBtn.addEventListener('click', function(){
+        if (!TG_PENDING) return;
+        newBtn.disabled = true; linkBtn.disabled = true;
+        hideErr('authErr');
+        google.script.run
+          .withSuccessHandler(function(res){
+            newBtn.disabled = false; linkBtn.disabled = false;
+            document.getElementById('tgPanel').hidden = true;
+            setTelegramFormVisible(true);
+            loginSucceeded(res);
+            showToast('Welcome! Add your phone number under your name when you get a chance.');
+          })
+          .withFailureHandler(function(err){
+            newBtn.disabled = false; linkBtn.disabled = false;
+            showErr('authErr', err.message);
+          })
+          .signUpWithTelegram(TG_DATA, { name: TG_PENDING.name });
+      });
+
+      // Reveal the email form; submitting it LINKS rather than logs in.
+      linkBtn.addEventListener('click', function(){
+        TG_LINK_MODE = true;
+        setTelegramFormVisible(true);
+        document.getElementById('tgBlurb').textContent =
+          'Enter the email and password you already use, just this once.';
+        document.getElementById('authSubmit').textContent = 'Link my account';
+        var el = document.getElementById('au_email');
+        if (el) el.focus();
+      });
+    }
+
+    var TG_LINK_MODE = false;
+
+    function setUser(user){
+      STATE.user = user;
+      var logged = !!user;
+      document.getElementById('loginBtn').hidden = logged;
+      document.getElementById('accountWrap').hidden = !logged;
+      if (logged){
+        document.getElementById('accountAvatar').textContent = initials(user.name);
+        document.getElementById('accountName').textContent = user.name.split(' ')[0];
+        document.getElementById('menuName').textContent = user.name;
+        document.getElementById('menuEmail').textContent = user.email;
+        document.getElementById('sessionOwnerNote').textContent =
+          'Posted as ' + user.name + ' (' + user.email + ') — you\'ll be the only one who can cancel or reinstate it.';
+      } else {
+        closeDrawer();
+        MY_PANEL = { games: null, sessions: null };
+        document.getElementById('accountMenu').classList.remove('open');
+      }
+    }
+
+    // account dropdown
+    var accountMenu = document.getElementById('accountMenu');
+    document.getElementById('accountBtn').addEventListener('click', function(e){
+      e.stopPropagation();
+      accountMenu.classList.toggle('open');
+    });
+    document.addEventListener('click', function(){ accountMenu.classList.remove('open'); });
+    accountMenu.addEventListener('click', function(e){ e.stopPropagation(); });
+    document.getElementById('menuMyGames').addEventListener('click', function(){
+      accountMenu.classList.remove('open'); openDrawer('games');
+    });
+    document.getElementById('menuMySessions').addEventListener('click', function(){
+      accountMenu.classList.remove('open'); openDrawer('sessions');
+    });
+    document.getElementById('menuMyDetails').addEventListener('click', function(){
+      accountMenu.classList.remove('open');
+      if (!STATE.user){ openAuth('login'); return; }
+      hideErr('profileErr');
+      document.getElementById('pf_name').value = STATE.user.name || '';
+      document.getElementById('pf_email').value = STATE.user.email || '';
+      document.getElementById('pf_phone').value = STATE.user.phone || '';
+      openModal('profileBackdrop');
+    });
+
+    document.getElementById('profileForm').addEventListener('submit', function(e){
+      e.preventDefault();
+      var btn = e.target.querySelector('button[type=submit]');
+      btn.disabled = true;
+      hideErr('profileErr');
+      google.script.run
+        .withSuccessHandler(function(user){
+          btn.disabled = false;
+          setUser(user);
+          closeModal('profileBackdrop');
+          showToast('Details updated.');
+          refresh(true);
+          MY_PANEL = { games: null, sessions: null };
+          if (drawerIsOpen()) loadDrawer(true);
+        })
+        .withFailureHandler(function(err){
+          btn.disabled = false;
+          if (!handleAuthError(err)) showErr('profileErr', err.message);
+        })
+        .updateProfile(TOKEN, {
+          name: document.getElementById('pf_name').value.trim(),
+          email: document.getElementById('pf_email').value.trim(),
+          phone: document.getElementById('pf_phone').value.trim()
+        });
+    });
+
+    document.getElementById('menuLogout').addEventListener('click', function(){
+      accountMenu.classList.remove('open');
+      var t = TOKEN;
+      TOKEN = ''; clearToken(); setUser(null);
+      showToast('Logged out.');
+      google.script.run.withSuccessHandler(function(){}).withFailureHandler(function(){}).logOut(t);
+      refresh(true);
+    });
+
+    // ================= drawer =================
+    function openDrawer(tab){
+      if (!STATE.user){ openAuth('login'); return; }
+      STATE.drawerTab = tab || STATE.drawerTab;
+      document.getElementById('drawer').classList.add('open');
+      document.getElementById('drawer').setAttribute('aria-hidden', 'false');
+      document.getElementById('drawerBackdrop').classList.add('open');
+      syncDrawerTabs();
+      paintDrawer();          // instant if we already have data
+      refreshPanelQuietly();  // then quietly bring it up to date
+    }
+    function closeDrawer(){
+      document.getElementById('drawer').classList.remove('open');
+      document.getElementById('drawer').setAttribute('aria-hidden', 'true');
+      document.getElementById('drawerBackdrop').classList.remove('open');
+    }
+    function drawerIsOpen(){ return document.getElementById('drawer').classList.contains('open'); }
+    document.getElementById('drawerClose').addEventListener('click', closeDrawer);
+    document.getElementById('drawerBackdrop').addEventListener('click', closeDrawer);
+    document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && drawerIsOpen()) closeDrawer(); });
+    document.getElementById('drawerTabGames').addEventListener('click', function(){
+      STATE.drawerTab = 'games'; syncDrawerTabs(); paintDrawer();
+    });
+    document.getElementById('drawerTabSessions').addEventListener('click', function(){
+      STATE.drawerTab = 'sessions'; syncDrawerTabs(); paintDrawer();
+    });
+
+    function syncDrawerTabs(){
+      var games = STATE.drawerTab === 'games';
+      document.getElementById('drawerTabGames').classList.toggle('active', games);
+      document.getElementById('drawerTabSessions').classList.toggle('active', !games);
+      document.getElementById('drawerTitle').textContent = games ? 'My games' : 'My sessions';
+      document.getElementById('drawerSub').textContent = games
+        ? 'Everything you\'re signed up for, including slots you booked for friends.'
+        : 'Sessions you posted — only you can cancel or reinstate these.';
+    }
+
+    /** Both tabs come from one server call and are cached, so switching
+     *  tabs is instant instead of another round trip. */
+    var MY_PANEL = { games: null, sessions: null };
+    var panelLoading = false;
+
+    function drawerLoadingHtml(){
+      return '<div class="loading-block">' +
+        '<div class="loading-label"><span class="spinner"></span>Loading…</div>' +
+        '<div class="skel"></div><div class="skel short"></div>' +
+      '</div>';
+    }
+
+    function paintDrawer(){
+      var data = STATE.drawerTab === 'games' ? MY_PANEL.games : MY_PANEL.sessions;
+      if (!data){
+        document.getElementById('drawerBody').innerHTML = drawerLoadingHtml();
+        return;
+      }
+      if (STATE.drawerTab === 'games') renderMyGames(data);
+      else renderMySessions(data);
+    }
+
+    /** force: throw away the cache and re-fetch (after something changed). */
+    function loadDrawer(force){
+      if (force) MY_PANEL = { games: null, sessions: null };
+      paintDrawer();
+      if (panelLoading) return;
+      panelLoading = true;
+      google.script.run
+        .withSuccessHandler(function(res){
+          panelLoading = false;
+          MY_PANEL.games = res.games;
+          MY_PANEL.sessions = res.sessions;
+          if (drawerIsOpen()) paintDrawer();
+        })
+        .withFailureHandler(function(err){
+          panelLoading = false;
+          if (handleAuthError(err)) return;
+          document.getElementById('drawerBody').innerHTML =
+            '<div class="empty-row">' + esc(err.message) + '</div>';
+        })
+        .getMyPanel(TOKEN);
+    }
+
+    function gameMetaLine(g){
+      return '<span style="color:var(--ink); font-weight:600;">📍 ' + esc(g.location) +
+          (g.court ? ' · ' + esc(g.court) : '') + '</span>' +
+        '<br>👤 ' + esc(g.organiser) +
+        (g.pricePerPax !== '' && g.pricePerPax != null ? ' · $' + esc(g.pricePerPax) + '/pax' : '') +
+        ' · <a class="map-link" href="' + esc(g.mapUrl) + '" target="_blank" rel="noopener">Maps ↗</a>';
+    }
+
+    function renderGameGroup(g, canCancel){
+      var chip = g.attendees.length > 1
+        ? '<span class="count-chip">' + g.attendees.length + ' attendees</span>'
+        : '';
+      var statusPill = g.sessionCancelled
+        ? '<span class="mini" style="background:var(--danger-soft); color:var(--danger);">Cancelled</span>'
+        : '';
+      var attendees = g.attendees.map(function(a){
+        var mini = a.status === 'Waitlist'
+          ? '<span class="mini waitlist">Waitlist #' + a.waitlistPosition + '</span>'
+          : '<span class="mini confirmed">Confirmed</span>';
+        var btn = (canCancel && !g.sessionCancelled)
+          ? '<button class="btn-danger-text drawer-cancel" data-regid="' + esc(a.regId) + '">Cancel</button>'
+          : '';
+        return '<div class="dg-att"><span class="nm"><b>' + esc(a.name) + '</b>' +
+          '</span>' +
+          '<span style="display:flex; align-items:center; gap:6px;">' + mini + btn + '</span></div>';
+      }).join('');
+      return '<div class="dg' + (g.sessionCancelled ? ' cancelled' : '') + '">' +
+        '<div class="dg-top"><div>' +
+          '<div class="dg-when">' + esc(g.date) + ' · ' + esc(g.start) + '–' + esc(g.end) + '</div>' +
+          '<div class="dg-meta">' + gameMetaLine(g) + '</div>' +
+        '</div><div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end;">' +
+          chip + statusPill + '</div></div>' +
+        (g.sessionCancelled && g.cancelReason
+          ? '<div class="dg-meta" style="color:var(--danger);">Reason: ' + esc(g.cancelReason) + '</div>' : '') +
+        '<div class="dg-attendees">' + attendees + '</div>' +
+        (!g.sessionCancelled && !g.isPast && g.calendarUrl
+          ? '<a class="cal-link" href="' + esc(g.calendarUrl) + '" target="_blank" rel="noopener">📅 Add to Google Calendar</a>'
+          : '') +
+      '</div>';
+    }
+
+    function renderMyGames(data){
+      var body = document.getElementById('drawerBody');
+      if (!data.upcoming.length && !data.past.length){
+        body.innerHTML = '<div class="empty-state">You haven\'t joined any games yet. Close this and tap “Join this game” on a session.</div>';
+        return;
+      }
+      var html = '';
+      html += '<div class="drawer-section"><div class="drawer-section-title">Upcoming (' + data.upcoming.length + ')</div>' +
+        (data.upcoming.length
+          ? data.upcoming.map(function(g){ return renderGameGroup(g, true); }).join('')
+          : '<div class="empty-row">Nothing coming up.</div>') + '</div>';
+      if (data.past.length){
+        html += '<div class="drawer-section"><div class="drawer-section-title">History (' + data.past.length + ')</div>' +
+          data.past.map(function(g){ return renderGameGroup(g, false); }).join('') + '</div>';
+      }
+      body.innerHTML = html;
+      body.querySelectorAll('.drawer-cancel').forEach(function(b){
+        b.addEventListener('click', function(){ doCancelSlot(b.getAttribute('data-regid')); });
+      });
+    }
+
+    function renderSessionRow(s){
+      var isFull = s.confirmedCount >= s.paxRequired;
+      var pill = s.sessionCancelled
+        ? '<span class="mini" style="background:var(--danger-soft); color:var(--danger);">Cancelled</span>'
+        : (isFull ? '<span class="mini" style="background:var(--danger-soft); color:var(--danger);">Full</span>'
+                  : '<span class="mini confirmed">' + (s.paxRequired - s.confirmedCount) + ' left</span>');
+      var actions = '';
+      if (!s.isPast){
+        actions = s.sessionCancelled
+          ? '<button class="btn btn-ghost drawer-reinstate" data-id="' + esc(s.sessionId) + '" data-label="' + esc(s.date + ' · ' + s.start + '–' + s.end + ' @ ' + s.location) + '" style="padding:8px 12px; font-size:13px;">Reinstate</button>'
+          : '<button class="btn-danger-text drawer-cancelsession" data-id="' + esc(s.sessionId) + '" data-label="' + esc(s.date + ' · ' + s.start + '–' + s.end + ' @ ' + s.location) + '">Cancel session…</button>';
+      }
+      return '<div class="dg' + (s.sessionCancelled ? ' cancelled' : '') + '">' +
+        '<div class="dg-top"><div>' +
+          '<div class="dg-when">' + esc(s.date) + ' · ' + esc(s.start) + '–' + esc(s.end) + '</div>' +
+          '<div class="dg-meta"><span style="color:var(--ink); font-weight:600;">📍 ' + esc(s.location) +
+            (s.court ? ' · ' + esc(s.court) : '') + '</span>' +
+            '<br>' + s.confirmedCount + '/' + s.paxRequired + ' confirmed' +
+            (s.waitlistCount ? ' · ' + s.waitlistCount + ' waiting' : '') +
+            (s.pricePerPax !== '' && s.pricePerPax != null ? ' · $' + esc(s.pricePerPax) + '/pax' : '') + '</div>' +
+        '</div>' + pill + '</div>' +
+        (s.sessionCancelled && s.cancelReason
+          ? '<div class="dg-meta" style="color:var(--danger);">Reason: ' + esc(s.cancelReason) + '</div>' : '') +
+        (!s.sessionCancelled && !s.isPast && s.calendarUrl
+          ? '<a class="cal-link" href="' + esc(s.calendarUrl) + '" target="_blank" rel="noopener">📅 Add to Google Calendar</a>'
+          : '') +
+        (actions ? '<div>' + actions + '</div>' : '') +
+      '</div>';
+    }
+
+    function renderMySessions(data){
+      var body = document.getElementById('drawerBody');
+      if (!data.upcoming.length && !data.past.length){
+        body.innerHTML = '<div class="empty-state">You haven\'t posted any sessions yet. Close this and tap “+ New session”.</div>';
+        return;
+      }
+      var html = '<div class="drawer-section"><div class="drawer-section-title">Upcoming (' + data.upcoming.length + ')</div>' +
+        (data.upcoming.length ? data.upcoming.map(renderSessionRow).join('') : '<div class="empty-row">Nothing coming up.</div>') +
+        '</div>';
+      if (data.past.length){
+        html += '<div class="drawer-section"><div class="drawer-section-title">History (' + data.past.length + ')</div>' +
+          data.past.map(renderSessionRow).join('') + '</div>';
+      }
+      body.innerHTML = html;
+      body.querySelectorAll('.drawer-cancelsession').forEach(function(b){
+        b.addEventListener('click', function(){ openCancelSession(b.getAttribute('data-id'), b.getAttribute('data-label')); });
+      });
+      body.querySelectorAll('.drawer-reinstate').forEach(function(b){
+        b.addEventListener('click', function(){ openReactivate(b.getAttribute('data-id'), b.getAttribute('data-label')); });
+      });
+    }
+
+    // ================= main list =================
+    function refresh(silent){
+      google.script.run
+        .withSuccessHandler(function(data){
+          STATE.sessions = data.sessions;
+          if (data.viewer) setUser(data.viewer);
+          else if (STATE.user) setUser(null);
+          render();
+          if (drawerIsOpen()) refreshPanelQuietly();
+        })
+        .withFailureHandler(function(err){
+          if (!silent) showToast('Could not load sessions: ' + err.message, true);
+        })
+        .listSessions(TOKEN);
+    }
+
+    document.getElementById('chipAvailable').addEventListener('click', function(){
+      STATE.filterAvailable = !STATE.filterAvailable;
+      render();
+    });
+
+    /** Updates the drawer's data without flashing a loading state. */
+    function refreshPanelQuietly(){
+      if (panelLoading || !STATE.user) return;
+      panelLoading = true;
+      google.script.run
+        .withSuccessHandler(function(res){
+          panelLoading = false;
+          MY_PANEL.games = res.games;
+          MY_PANEL.sessions = res.sessions;
+          if (drawerIsOpen()) paintDrawer();
+        })
+        .withFailureHandler(function(){ panelLoading = false; })
+        .getMyPanel(TOKEN);
+    }
+
+    document.querySelectorAll('#tabs .tab').forEach(function(t){
+      t.addEventListener('click', function(){
+        STATE.tab = t.getAttribute('data-tab');
+        document.querySelectorAll('#tabs .tab').forEach(function(x){ x.classList.remove('active'); });
+        t.classList.add('active');
+        render();
+      });
+    });
+
+    function splitSessions(){
+      var open = [], closed = [];
+      STATE.sessions.forEach(function(s){
+        if (s.isCancelled || s.isPast) closed.push(s); else open.push(s);
+      });
+      open.sort(function(a,b){ return a.dateRaw - b.dateRaw; });
+      closed.sort(function(a,b){ return b.dateRaw - a.dateRaw; });
+      return { open: open, closed: closed };
+    }
+
+    function hasSpace(s){ return s.confirmed.length < s.paxRequired; }
+
+    function render(){
+      var area = document.getElementById('sessionsArea');
+      var groups = splitSessions();
+      document.getElementById('tabOpen').innerHTML = 'Open sessions <span class="count">(' + groups.open.length + ')</span>';
+      document.getElementById('tabClosed').innerHTML = 'Closed sessions <span class="count">(' + groups.closed.length + ')</span>';
+
+      // "Available slots" only means anything on the open tab
+      var openWithSpace = groups.open.filter(hasSpace).length;
+      var chip = document.getElementById('chipAvailable');
+      document.getElementById('filters').hidden = STATE.tab !== 'open';
+      chip.innerHTML = 'Available slots <span class="chip-count">(' + openWithSpace + ')</span>';
+      chip.setAttribute('aria-pressed', STATE.filterAvailable ? 'true' : 'false');
+
+      var list = STATE.tab === 'open' ? groups.open : groups.closed;
+      if (STATE.tab === 'open' && STATE.filterAvailable) list = list.filter(hasSpace);
+
+      if (!list.length){
+        area.innerHTML = '<div class="empty-state">' + (STATE.tab !== 'open'
+          ? 'Nothing here yet — cancelled and past sessions show up in this tab.'
+          : (STATE.filterAvailable
+              ? 'Every open session is full right now. Turn off “Available slots” to see them all, or join a waitlist.'
+              : 'No open sessions right now. Post one with “+ New session”.')) + '</div>';
+        return;
+      }
+      area.innerHTML = '<div class="grid">' + list.map(renderCard).join('') + '</div>';
+
+      area.querySelectorAll('.join-toggle').forEach(function(b){
+        b.addEventListener('click', function(){ openJoin(b.getAttribute('data-id'), b.getAttribute('data-label')); });
+      });
+      area.querySelectorAll('.cancel-mine').forEach(function(b){
+        b.addEventListener('click', function(){ doCancelSlot(b.getAttribute('data-regid')); });
+      });
+      area.querySelectorAll('.cancel-session').forEach(function(b){
+        b.addEventListener('click', function(){ openCancelSession(b.getAttribute('data-id'), b.getAttribute('data-label')); });
+      });
+      area.querySelectorAll('.reactivate-session').forEach(function(b){
+        b.addEventListener('click', function(){ openReactivate(b.getAttribute('data-id'), b.getAttribute('data-label')); });
+      });
+      area.querySelectorAll('.card-tab').forEach(function(t){
+        t.addEventListener('click', function(){
+          var id = t.getAttribute('data-card'), pane = t.getAttribute('data-pane');
+          CARD_TAB[id] = pane;
+          area.querySelectorAll('.card-tab[data-card="' + id + '"]').forEach(function(x){
+            x.classList.toggle('active', x.getAttribute('data-pane') === pane);
+          });
+          area.querySelectorAll('.roster-pane[data-card="' + id + '"]').forEach(function(p){
+            p.hidden = p.getAttribute('data-pane') !== pane;
+          });
+        });
+      });
+      area.querySelectorAll('.kebab').forEach(function(b){
+        b.addEventListener('click', function(e){
+          e.stopPropagation();
+          var menu = document.getElementById('menu-' + b.getAttribute('data-menu'));
+          var wasOpen = menu.classList.contains('open');
+          closeKebabs();
+          if (!wasOpen) menu.classList.add('open');
+        });
+      });
+      area.querySelectorAll('.kebab-menu').forEach(function(m){
+        m.addEventListener('click', function(){ closeKebabs(); });
+      });
+    }
+
+    function closeKebabs(){
+      document.querySelectorAll('.kebab-menu.open').forEach(function(m){ m.classList.remove('open'); });
+    }
+    document.addEventListener('click', closeKebabs);
+
+    function renderRosterItem(p, idx, readOnly){
+      var actionHtml = (!readOnly && p.mine)
+        ? '<button class="btn-danger-text cancel-mine" data-regid="'+esc(p.id)+'">Cancel</button>'
+        : '';
+      // Level lives in the tooltip rather than on the row, and a slot booked
+      // by someone else needs no "guest" label — it's just another player.
+      var tip = [p.name, p.level || '', p.guestOf ? 'booked by ' + p.guestOf : '']
+        .filter(function(x){ return x; }).join(' · ');
+      return '<li' + (p.mine ? ' class="mine"' : '') + ' title="'+esc(tip)+'">' +
+        '<span class="who"><span class="num">'+(idx+1)+'.</span>' +
+          '<span class="name-block">' +
+            '<span class="name">'+esc(p.name)+'</span>' +
+            (p.level ? '<span class="lvl" title="'+esc(p.level)+'">'+esc(levelAbbr(p.level))+'</span>' : '') +
+          '</span>' +
+        '</span>' + actionHtml + '</li>';
+    }
+
+    function renderCard(s){
+      var pct = s.paxRequired > 0 ? Math.min(100, Math.round(100 * s.confirmed.length / s.paxRequired)) : 0;
+      var isFull = s.confirmed.length >= s.paxRequired;
+      var label = s.date + ' · ' + s.start + '–' + s.end + ' @ ' + s.location + ' (' + s.court + ')';
+      // Started but not finished: still an open session, just not joinable.
+      var inProgress = !s.isCancelled && !s.isPast && !!s.signUpsClosed;
+      // Once the game starts the roster is settled — no joining, no dropping
+      // out, and nothing left for the waitlist to be promoted into.
+      var readOnly = s.isCancelled || s.isPast || inProgress;
+
+      var statusPill;
+      if (s.isCancelled) statusPill = '<span class="pill pill-cancelled">Cancelled</span>';
+      else if (s.isPast) statusPill = '<span class="pill">Past</span>';
+      else if (inProgress) statusPill = '<span class="pill">Playing now</span>';
+      else statusPill = '<span class="pill '+(isFull ? 'pill-full' : 'pill-open')+'">' +
+        (isFull ? 'Full' : (s.paxRequired - s.confirmed.length) + ' spot(s) left') + '</span>';
+
+      // Confirmed / Waitlist live in tabs inside the card; the chosen tab is
+      // remembered per session so the 20-second refresh doesn't reset it.
+      var tab = CARD_TAB[s.id] === 'waitlist' && s.waitlist.length ? 'waitlist' : 'confirmed';
+      var confirmedHtml = s.confirmed.length
+        ? '<ul class="roster-list">' + s.confirmed.map(function(p,i){ return renderRosterItem(p,i,readOnly); }).join('') + '</ul>'
+        : '<div class="empty-row">No one yet — be the first to join.</div>';
+      var waitlistHtml = s.waitlist.length
+        ? '<ul class="roster-list">' + s.waitlist.map(function(p,i){ return renderRosterItem(p,i,readOnly); }).join('') + '</ul>'
+        : '<div class="empty-row">No one waiting.</div>';
+
+      var tabsHtml =
+        '<div class="card-tabs">' +
+          '<button class="card-tab' + (tab === 'confirmed' ? ' active' : '') + '" ' +
+            'data-card="'+esc(s.id)+'" data-pane="confirmed">Confirmed ' + s.confirmed.length + '/' + s.paxRequired + '</button>' +
+          '<button class="card-tab' + (tab === 'waitlist' ? ' active' : '') + '" ' +
+            'data-card="'+esc(s.id)+'" data-pane="waitlist">Waitlist ' + s.waitlist.length + '</button>' +
+        '</div>';
+
+      var panesHtml =
+        '<div class="roster-scroll">' +
+          '<div class="roster-pane" data-card="'+esc(s.id)+'" data-pane="confirmed"' +
+            (tab === 'confirmed' ? '' : ' hidden') + '>' + confirmedHtml + '</div>' +
+          '<div class="roster-pane" data-card="'+esc(s.id)+'" data-pane="waitlist"' +
+            (tab === 'waitlist' ? '' : ' hidden') + '>' + waitlistHtml + '</div>' +
+        '</div>';
+
+      var reasonHtml = s.isCancelled && s.cancelReason
+        ? '<div class="reason-box"><b>Cancelled by '+esc(s.organiser)+':</b> '+esc(s.cancelReason)+'</div>'
+        : '';
+
+      var actions = '';
+      if (inProgress){
+        actions = '<div class="card-actions">' +
+          '<div class="closed-note">Sign-ups closed — this session has started.</div>' +
+        '</div>';
+      } else if (!s.isCancelled && !s.isPast){
+        // already in? the button's job is adding a guest, not joining again
+        var inAlready = iAmOnRoster(s);
+        var joinLabel = inAlready ? '+ Add a guest' : (isFull ? 'Join waitlist' : 'Join this game');
+        actions = '<div class="card-actions">' +
+          '<button class="btn ' + ((isFull || inAlready) ? 'btn-ghost' : 'btn-primary') + ' join-toggle" ' +
+            'data-id="'+esc(s.id)+'" data-label="'+esc(label)+'" ' +
+            'style="width:100%; justify-content:center; padding:13px 18px; font-size:14.5px;">' +
+            joinLabel + '</button>' +
+        '</div>';
+      }
+
+      var ownerMenu = s.canManage
+        ? '<div class="kebab-wrap">' +
+            '<button class="kebab" data-menu="'+esc(s.id)+'" aria-label="Session options">⋯</button>' +
+            '<div class="kebab-menu" id="menu-'+esc(s.id)+'">' +
+              (s.isCancelled
+                ? '<button class="reactivate-session" data-id="'+esc(s.id)+'" data-label="'+esc(label)+'">Reinstate session</button>'
+                : '<button class="danger cancel-session" data-id="'+esc(s.id)+'" data-label="'+esc(label)+'">Cancel session…</button>') +
+            '</div></div>'
+        : '';
+
+      return '' +
+      '<div class="card' + (s.isCancelled ? ' is-cancelled' : '') + (s.isPast ? ' is-past' : '') + '">' +
+        '<div class="card-head">' +
+          '<div class="when"><div class="date' + (s.isCancelled ? ' struck' : '') + '">'+esc(s.date)+'</div>' +
+            '<div class="time">'+esc(s.start)+'–'+esc(s.end)+'</div></div>' +
+          '<div style="display:flex; align-items:center; gap:4px;">' + statusPill + ownerMenu + '</div>' +
+        '</div>' +
+        '<a class="place" href="'+esc(s.mapUrl)+'" target="_blank" rel="noopener" ' +
+            'title="'+esc((s.locationAddress ? s.locationAddress + ' — ' : '') + 'open in Google Maps')+'">' +
+          '<span class="place-name">📍 '+esc(s.location)+(s.court ? ' · '+esc(s.court) : '')+
+            ' <span class="place-ext">↗</span></span>' +
+        '</a>' +
+        reasonHtml +
+        '<div class="meta">' +
+          '<span class="m-organiser">👤 '+esc(s.organiser)+'</span>' +
+          (s.pricePerPax !== '' && s.pricePerPax != null ? '<span class="m-price">$'+esc(s.pricePerPax)+'/pax</span>' : '') +
+          '<span class="level-tag" title="'+esc(s.level)+'">'+esc(levelShort(s.level))+'</span>' +
+        '</div>' +
+        '<div class="progress-row">' +
+          '<div class="progress"><i style="width:'+pct+'%"></i></div>' +
+          '<div class="progress-label">'+s.confirmed.length+'/'+s.paxRequired+'</div>' +
+        '</div>' +
+        tabsHtml +
+        panesHtml +
+        actions +
+      '</div>';
+    }
+
+    // ================= location search (OpenStreetMap, free) =================
+    var locResultsEl = document.getElementById('locationResults');
+    var locInput = document.getElementById('s_location');
+    var locDebounce;
+    locInput.addEventListener('input', function(){
+      clearTimeout(locDebounce);
+      var q = locInput.value.trim();
+      if (q.length < 3){ locResultsEl.classList.remove('open'); return; }
+      locDebounce = setTimeout(function(){ searchLocation(q); }, 400);
+    });
+    document.addEventListener('click', function(e){
+      if (e.target !== locInput) locResultsEl.classList.remove('open');
+    });
+    /** Splits an OpenStreetMap result into a short place name and the rest. */
+    function splitPlace(result){
+      var full = String(result.display_name || '');
+      var name = (result.namedetails && result.namedetails.name) || '';
+      if (!name){
+        var i = full.indexOf(',');
+        name = i === -1 ? full : full.slice(0, i);
+      }
+      var address = full.indexOf(',') === -1 ? '' : full.slice(full.indexOf(',') + 1).trim();
+      // Drop the country repeat and postcode-only tail noise OSM often adds.
+      return { name: name.trim(), address: address };
+    }
+
+    function searchLocation(q){
+      fetch('https://nominatim.openstreetmap.org/search?format=json&namedetails=1&limit=5&q=' + encodeURIComponent(q))
+        .then(function(r){ return r.json(); })
+        .then(function(results){
+          if (!results || !results.length){ locResultsEl.classList.remove('open'); return; }
+          locResultsEl.innerHTML = results.map(function(r, i){
+            var p = splitPlace(r);
+            return '<button type="button" data-idx="'+i+'">' +
+              '<b style="display:block; font-size:13.5px;">'+esc(p.name)+'</b>' +
+              '<span style="color:var(--muted); font-size:11.5px;">'+esc(p.address)+'</span></button>';
+          }).join('');
+          locResultsEl.classList.add('open');
+          locResultsEl.querySelectorAll('button').forEach(function(b){
+            b.addEventListener('click', function(){
+              var p = splitPlace(results[Number(b.getAttribute('data-idx'))]);
+              locInput.value = p.name;
+              setCapturedAddress(p.address);
+              locResultsEl.classList.remove('open');
+            });
+          });
+        })
+        .catch(function(){ locResultsEl.classList.remove('open'); });
+    }
+
+    // ---- start time + duration <-> end time, kept in sync both ways ----
+    var startEl = document.getElementById('s_start');
+    var durEl = document.getElementById('s_duration');
+    var endEl = document.getElementById('s_end');
+    var syncingTimes = false;
+
+    function minutesOf(value){
+      var m = /^(\d{1,2}):(\d{2})/.exec(value || '');
+      return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+    }
+    function toTimeValue(mins){
+      var m = ((mins % 1440) + 1440) % 1440;
+      return String(Math.floor(m / 60)).padStart(2,'0') + ':' + String(m % 60).padStart(2,'0');
+    }
+    function applyDuration(){
+      if (syncingTimes) return;
+      var start = minutesOf(startEl.value);
+      var hours = parseFloat(durEl.value);
+      if (start === null || !hours || hours <= 0) return;
+      syncingTimes = true;
+      endEl.value = toTimeValue(start + Math.round(hours * 60));
+      syncingTimes = false;
+      hideErr('sessionFormErr');
+    }
+    function applyEnd(){
+      if (syncingTimes) return;
+      var start = minutesOf(startEl.value);
+      var end = minutesOf(endEl.value);
+      if (start === null || end === null) return;
+      if (end <= start){
+        showErr('sessionFormErr', 'The end time has to be after the start time.');
+        return;
+      }
+      hideErr('sessionFormErr');
+      syncingTimes = true;
+      durEl.value = Math.round(((end - start) / 60) * 100) / 100;
+      syncingTimes = false;
+    }
+    startEl.addEventListener('change', applyDuration);
+    durEl.addEventListener('input', applyDuration);
+    endEl.addEventListener('change', applyEnd);
+
+    // ---- location: one field, address captured behind it ----
+    function setCapturedAddress(address){
+      document.getElementById('s_locationAddress').value = address || '';
+      var caption = document.getElementById('addrCaption');
+      if (address){
+        caption.innerHTML = '📍 ' + esc(address) +
+          ' · <button type="button" class="link-btn" id="clearAddr" style="font-size:11.5px;">clear address</button>';
+        var clear = document.getElementById('clearAddr');
+        if (clear) clear.addEventListener('click', function(){ setCapturedAddress(''); });
+      } else {
+        caption.textContent = 'Search and pick a place — the name fills in here (edit it however you like) ' +
+          'and the full address is saved for the map link.';
+      }
+    }
+
+    // ================= new session =================
+    document.getElementById('openNewSession').addEventListener('click', function(){
+      if (!STATE.user){
+        showToast('Log in first — sessions are tied to your account so only you can cancel them.');
+        openAuth('login');
+        return;
+      }
+      hideErr('sessionFormErr');
+      document.getElementById('sessionForm').reset();
+      document.getElementById('s_date').min = todayStr();
+      durEl.value = '2';
+      setCapturedAddress('');
+      openModal('sessionModalBackdrop');
+    });
+
+    document.getElementById('sessionForm').addEventListener('submit', function(e){
+      e.preventDefault();
+      var btn = e.target.querySelector('button[type=submit]');
+      btn.disabled = true;
+      google.script.run
+        .withSuccessHandler(function(){
+          btn.disabled = false;
+          closeModal('sessionModalBackdrop');
+          document.getElementById('sessionForm').reset();
+          showToast('Session posted 🏸');
+          STATE.tab = 'open';
+          document.querySelectorAll('#tabs .tab').forEach(function(x){ x.classList.remove('active'); });
+          document.getElementById('tabOpen').classList.add('active');
+          refresh(true);
+        })
+        .withFailureHandler(function(err){
+          btn.disabled = false;
+          if (!handleAuthError(err)) showErr('sessionFormErr', err.message);
+        })
+        .createSession(TOKEN, {
+          date: document.getElementById('s_date').value,
+          start: document.getElementById('s_start').value,
+          end: document.getElementById('s_end').value,
+          location: document.getElementById('s_location').value,
+          locationAddress: document.getElementById('s_locationAddress').value,
+          court: document.getElementById('s_court').value,
+          pricePerPax: document.getElementById('s_price').value,
+          paxRequired: document.getElementById('s_pax').value,
+          level: document.getElementById('s_level').value
+        });
+    });
+
+    // ================= join with slots =================
+    var slotsWrap = document.getElementById('slotsWrap');
+    var addSlotBtn = document.getElementById('addSlot');
+    function guestCount(){ return slotsWrap.querySelectorAll('.slot-row').length; }
+    /** guests plus the player's own slot, if they're taking one */
+    function totalSlots(){ return guestCount() + (selfIsPlaying() ? 1 : 0); }
+    function selfIsPlaying(){
+      return !JOIN_CTX.alreadyIn && !document.getElementById('j_excludeSelf').checked;
+    }
+    function levelOptions(){
+      return STATE.playerLevels.map(function(l){ return '<option value="'+esc(l)+'">'+esc(l)+'</option>'; }).join('');
+    }
+    function syncSlotUi(){
+      var total = totalSlots();
+      addSlotBtn.disabled = total >= STATE.maxSlots;
+      var selfBlock = document.getElementById('selfBlock');
+      var excluded = !JOIN_CTX.alreadyIn && document.getElementById('j_excludeSelf').checked;
+      selfBlock.classList.toggle('excluded', excluded);
+      document.getElementById('slotHint').textContent = total > 1
+        ? total + ' slots — they fill in this order, so whoever is first gets the spot if only one is left.'
+        : (total === 1
+            ? 'Bringing someone? Add a guest — up to ' + STATE.maxSlots + ' slots per booking.'
+            : 'Add at least one guest.');
+    }
+    /** Adds one blank GUEST row. The player's own slot is the locked
+     *  field above and is never one of these. */
+    function addSlotRow(){
+      if (totalSlots() >= STATE.maxSlots) return;
+      var row = document.createElement('div');
+      row.className = 'slot-row';
+      row.innerHTML =
+        '<div class="field"><label>Guest name</label>' +
+          '<input type="text" class="slot-name" placeholder="Who are you bringing?"></div>' +
+        '<div class="field" style="max-width:135px;"><label>Level</label>' +
+          '<select class="slot-level">' + levelOptions() + '</select></div>' +
+        '<button type="button" class="slot-remove" title="Remove this guest">✕</button>';
+      slotsWrap.appendChild(row);
+      row.querySelector('.slot-remove').addEventListener('click', function(){ row.remove(); syncSlotUi(); });
+      syncSlotUi();
+      var input = row.querySelector('.slot-name');
+      if (input) input.focus();
+    }
+    addSlotBtn.addEventListener('click', function(){ addSlotRow(); });
+    document.getElementById('j_excludeSelf').addEventListener('change', function(){
+      // opting out of playing means there must be at least one guest row
+      if (this.checked && guestCount() === 0) addSlotRow();
+      syncSlotUi();
+    });
+    function readGuests(){
+      return Array.prototype.map.call(slotsWrap.querySelectorAll('.slot-row'), function(row){
+        return { name: row.querySelector('.slot-name').value.trim(), level: row.querySelector('.slot-level').value };
+      }).filter(function(s){ return s.name; });
+    }
+
+    var JOIN_CTX = { sessionId: '', alreadyIn: false };
+
+    /**
+     * Am I already on this roster under my own name? Checked against MY
+     * rows only, so booking a guest doesn't stop me joining later, and
+     * another member who happens to share my name doesn't block me.
+     */
+    function iAmOnRoster(session){
+      if (!STATE.user || !session) return false;
+      var mine = String(STATE.user.name || '').trim().toLowerCase();
+      return session.confirmed.concat(session.waitlist).some(function(p){
+        return p.mine && String(p.name).trim().toLowerCase() === mine;
+      });
+    }
+
+    function openJoin(sessionId, label){
+      if (!STATE.user){
+        showToast('Log in to join — it takes 20 seconds and keeps your game list in one place.');
+        openAuth('login');
+        return;
+      }
+      var session = STATE.sessions.filter(function(s){ return s.id === sessionId; })[0];
+      JOIN_CTX = { sessionId: sessionId, alreadyIn: iAmOnRoster(session) };
+
+      hideErr('joinFormErr');
+      document.getElementById('joinForm').reset();
+      document.getElementById('j_sessionId').value = sessionId;
+      document.getElementById('joinModalTitle').textContent =
+        (JOIN_CTX.alreadyIn ? 'Add a guest — ' : 'Join — ') + label;
+
+      // your own slot is a locked field — never typed, so it always matches
+      // your account name and stays linked if you rename yourself later
+      document.getElementById('j_selfName').value = STATE.user.name || '';
+      document.getElementById('j_selfLevel').innerHTML = levelOptions();
+      document.getElementById('j_excludeSelf').checked = false;
+      document.getElementById('selfBlock').hidden = JOIN_CTX.alreadyIn;
+      document.getElementById('alreadyInNote').hidden = !JOIN_CTX.alreadyIn;
+
+      slotsWrap.innerHTML = '';
+      if (JOIN_CTX.alreadyIn) addSlotRow();   // straight to a guest row
+      syncSlotUi();
+      openModal('joinModalBackdrop');
+    }
+
+    document.getElementById('joinForm').addEventListener('submit', function(e){
+      e.preventDefault();
+      var guests = readGuests();
+      var includeSelf = selfIsPlaying();
+      if (!includeSelf && !guests.length){
+        showErr('joinFormErr', JOIN_CTX.alreadyIn
+          ? 'Add a guest\'s name, or close this — you\'re already in.'
+          : 'Add a guest\'s name, or untick “I\'m not playing”.');
+        return;
+      }
+      var btn = e.target.querySelector('button[type=submit]');
+      btn.disabled = true;
+      google.script.run
+        .withSuccessHandler(function(res){
+          btn.disabled = false;
+          closeModal('joinModalBackdrop');
+          var confirmed = res.results.filter(function(r){ return r.status === 'Confirmed'; });
+          var waiting = res.results.filter(function(r){ return r.status === 'Waitlist'; });
+          var msg;
+          if (!waiting.length){
+            msg = res.results.length === 1 ? 'You\'re confirmed — check your email 🎉'
+              : 'All ' + res.results.length + ' slots confirmed — check your email 🎉';
+          } else if (!confirmed.length){
+            msg = res.results.length === 1
+              ? 'Session full — you\'re #' + waiting[0].waitlistPosition + ' on the waitlist.'
+              : 'Session full — all ' + waiting.length + ' slots are on the waitlist.';
+          } else {
+            msg = confirmed.length + ' confirmed, ' + waiting.length + ' waitlisted — details in your email.';
+          }
+          showToast(msg);
+          refresh(true);
+        })
+        .withFailureHandler(function(err){
+          btn.disabled = false;
+          if (!handleAuthError(err)) showErr('joinFormErr', err.message);
+        })
+        .registerPlayer(TOKEN, {
+          sessionId: document.getElementById('j_sessionId').value,
+          includeSelf: includeSelf,
+          selfLevel: document.getElementById('j_selfLevel').value,
+          guests: guests
+        });
+    });
+
+    // ================= cancelling =================
+    function doCancelSlot(regId){
+      if (!confirm('Cancel this spot? If it was confirmed, the next person on the waitlist gets it and is emailed automatically.')) return;
+      google.script.run
+        .withSuccessHandler(function(res){
+          showToast(res.alreadyCancelled ? 'Already cancelled.' : 'Spot cancelled.' +
+            (res.promotedName ? ' ' + res.promotedName + ' was moved off the waitlist.' : ''));
+          refresh(true);
+        })
+        .withFailureHandler(function(err){ if (!handleAuthError(err)) showToast(err.message, true); })
+        .cancelRegistration(TOKEN, regId);
+    }
+
+    function openCancelSession(id, label){
+      hideErr('cancelSessionErr');
+      document.getElementById('cancelSessionForm').reset();
+      document.getElementById('cs_sessionId').value = id;
+      document.getElementById('cancelSessionLabel').textContent = label;
+      openModal('cancelSessionBackdrop');
+    }
+    function openReactivate(id, label){
+      hideErr('reactivateErr');
+      document.getElementById('ra_sessionId').value = id;
+      document.getElementById('reactivateLabel').textContent = label;
+      openModal('reactivateBackdrop');
+    }
+
+    document.getElementById('cancelSessionForm').addEventListener('submit', function(e){
+      e.preventDefault();
+      var btn = e.target.querySelector('button[type=submit]');
+      btn.disabled = true;
+      google.script.run
+        .withSuccessHandler(function(res){
+          btn.disabled = false;
+          closeModal('cancelSessionBackdrop');
+          showToast(res.alreadyCancelled ? 'That session was already cancelled.'
+            : 'Session cancelled — ' + res.notified + ' player' + (res.notified === 1 ? '' : 's') + ' emailed.');
+          refresh(true);
+        })
+        .withFailureHandler(function(err){
+          btn.disabled = false;
+          if (!handleAuthError(err)) showErr('cancelSessionErr', err.message);
+        })
+        .cancelSession(TOKEN, {
+          sessionId: document.getElementById('cs_sessionId').value,
+          reason: document.getElementById('cs_reason').value.trim()
+        });
+    });
+
+    document.getElementById('reactivateForm').addEventListener('submit', function(e){
+      e.preventDefault();
+      var btn = e.target.querySelector('button[type=submit]');
+      btn.disabled = true;
+      google.script.run
+        .withSuccessHandler(function(res){
+          btn.disabled = false;
+          closeModal('reactivateBackdrop');
+          showToast(res.alreadyActive ? 'That session is already on.'
+            : 'Session is back on — ' + res.notified + ' player' + (res.notified === 1 ? '' : 's') + ' emailed.');
+          STATE.tab = 'open';
+          document.querySelectorAll('#tabs .tab').forEach(function(x){ x.classList.remove('active'); });
+          document.getElementById('tabOpen').classList.add('active');
+          refresh(true);
+        })
+        .withFailureHandler(function(err){
+          btn.disabled = false;
+          if (!handleAuthError(err)) showErr('reactivateErr', err.message);
+        })
+        .reactivateSession(TOKEN, { sessionId: document.getElementById('ra_sessionId').value });
+    });
+
+    // Collapse the pinned header slightly once the page is scrolled.
+    (function stickyCompact(){
+      var appbar = document.querySelector('.appbar');
+      var apply = function(){ appbar.classList.toggle('compact', window.scrollY > 8); };
+      window.addEventListener('scroll', apply, { passive: true });
+      apply();
+    })();
+
+    // ================= boot =================
+    (function init(){
+      setAuthMode('login');
+      tgInit();
+      wireTelegramButtons();
+
+      // Arriving from a password-reset email? Go straight to the new-password step.
+      var boot = document.getElementById('bootData');
+      var tokenFromEmail = (boot && boot.dataset.resetToken || '').trim();
+      // Served statically there's no template to fill that attribute in, so
+      // fall back to the query string of the reset link itself.
+      if (!tokenFromEmail){
+        var m = String(location.search || '').match(/[?&]reset=([^&]+)/);
+        if (m) tokenFromEmail = decodeURIComponent(m[1]).trim();
+      }
+      // Only act on something that actually looks like a token, so a
+      // template that didn't render can't pop a broken reset dialog.
+      if (!/^[A-Za-z0-9]{24,}$/.test(tokenFromEmail)) tokenFromEmail = '';
+      if (tokenFromEmail){
+        RESET_TOKEN = tokenFromEmail;
+        openAuth('reset');
+      }
+      google.script.run.withSuccessHandler(function(cfg){
+        STATE.playerLevels = cfg.playerLevels;
+        STATE.sessionLevels = cfg.sessionLevels;
+        STATE.maxSlots = cfg.maxSlots;
+        document.getElementById('s_level').innerHTML =
+          cfg.sessionLevels.map(function(l){ return '<option value="'+esc(l)+'">'+esc(l)+'</option>'; }).join('');
+      }).withFailureHandler(function(){}).bootstrap();
+
+      if (TOKEN){
+        google.script.run.withSuccessHandler(function(user){
+          if (user) setUser(user);
+          else {
+            clearToken(); TOKEN = '';
+            // Saved login gone stale — inside Telegram we can silently get a
+            // fresh one instead of showing a login screen.
+            tgAutoLogin();
+          }
+        }).withFailureHandler(function(){}).me(TOKEN);
+      } else {
+        tgAutoLogin();
+      }
+      refresh();
+      setInterval(function(){ refresh(true); }, 20000);
+    })();
+  </script>
+</body>
+</html>
