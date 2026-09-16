@@ -54,6 +54,23 @@
     /* Author display rules (e.g. .btn{display:inline-flex}) otherwise beat the
        browser's default [hidden] rule, leaving "hidden" elements on screen. */
     [hidden]{display:none !important;}
+    /* ---- the page scrollbar ----
+       Hidden, for two reasons. It was a heavy grey slab down the side of the
+       mini app, and because it appears only when the content overflows, the
+       page got NARROWER the moment it showed up — so switching between a
+       full Open-sessions tab and an empty Closed one visibly jolted the
+       layout sideways. A scrollbar that takes no width can't do that.
+       overflow-y:scroll keeps the layout identical whether or not the page
+       overflows, belt-and-braces for engines that ignore the rules below.
+       Scrolling itself is untouched: wheel, touch, keys and Home/End all
+       behave exactly as before. */
+    html{
+      overflow-y:scroll;
+      scrollbar-width:none;        /* Firefox */
+      -ms-overflow-style:none;     /* legacy Edge */
+    }
+    html::-webkit-scrollbar{width:0; height:0; display:none;}  /* Chromium, WebKit */
+
     body{
       margin:0; background:var(--bg); color:var(--ink);
       font-family:'Poppins', system-ui, sans-serif;
@@ -263,8 +280,29 @@
       flex:1 1 auto; min-height:0; overflow-y:auto;
       padding-right:2px;
     }
-    .roster-scroll::-webkit-scrollbar{width:6px;}
-    .roster-scroll::-webkit-scrollbar-thumb{background:var(--line); border-radius:99px;}
+    /* Inner scrollers keep a scrollbar — inside a small box it's a genuine
+       hint that there's more below — but a slim, low-contrast one rather
+       than the platform slab. Only the PAGE scrollbar is hidden outright. */
+    .roster-scroll, .drawer-body, .modal-backdrop, .sheet-body,
+    .time-scroll, .location-results{
+      scrollbar-width:thin;
+      scrollbar-color:var(--line) transparent;
+    }
+    .roster-scroll::-webkit-scrollbar, .drawer-body::-webkit-scrollbar,
+    .modal-backdrop::-webkit-scrollbar, .sheet-body::-webkit-scrollbar,
+    .time-scroll::-webkit-scrollbar, .location-results::-webkit-scrollbar{
+      width:6px; height:6px;
+    }
+    .roster-scroll::-webkit-scrollbar-thumb, .drawer-body::-webkit-scrollbar-thumb,
+    .modal-backdrop::-webkit-scrollbar-thumb, .sheet-body::-webkit-scrollbar-thumb,
+    .time-scroll::-webkit-scrollbar-thumb, .location-results::-webkit-scrollbar-thumb{
+      background:var(--line); border-radius:99px;
+    }
+    .roster-scroll::-webkit-scrollbar-track, .drawer-body::-webkit-scrollbar-track,
+    .modal-backdrop::-webkit-scrollbar-track, .sheet-body::-webkit-scrollbar-track,
+    .time-scroll::-webkit-scrollbar-track, .location-results::-webkit-scrollbar-track{
+      background:transparent;
+    }
 
     /* ---- one card per row: hug the content ----
        Two columns need 300+300+16 = 616px of grid, so below that there is
