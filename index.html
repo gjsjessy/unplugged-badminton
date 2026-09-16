@@ -175,8 +175,14 @@
       .appbar.compact .brand p{display:none;}
       .appbar.compact .brand h1{font-size:19px;}
       .appbar.compact .topbar{margin-bottom:8px;}
-      .new-slot{justify-self:stretch;}
-      .new-slot .btn{width:100%; justify-content:center;}
+      /* New session moves down beside the Available-slots chip (see
+         placeNewSessionButton) instead of taking a full-width row of its
+         own, which dominated the screen on a phone. :empty means the row
+         only collapses once the button has actually been moved out, so a
+         JS failure can't hide the button entirely. */
+      .new-slot:empty{display:none;}
+      .filters{display:flex; align-items:center; gap:8px;}
+      .filters .new-session-inline{margin-left:auto; flex:0 0 auto;}
       /* just the avatar circle — no name, no caret */
       .account-label, .account-caret{display:none;}
       .account-btn{padding:5px; border-radius:50%;}
@@ -379,6 +385,13 @@
       .modal-close{min-height:40px; padding:0 4px;}
       .slot-row .slot-remove{min-width:38px; min-height:42px;}
       .add-slot{min-height:46px;}
+    }
+
+    /* The compact form of New session, for when it sits in the filter row.
+       Declared after the touch-target block above so it overrides the larger
+       .btn padding there, while still clearing 40px for a fingertip. */
+    .btn.new-session-inline{
+      padding:9px 14px; font-size:13px; min-height:40px; white-space:nowrap;
     }
 
     /* ---- narrow forms ----
@@ -2626,6 +2639,38 @@
         time: p(d.getUTCHours()) + ':' + p(d.getUTCMinutes())
       };
     }
+
+    /**
+     * Puts "+ New session" where it belongs for the screen size.
+     *
+     * On a phone a full-width primary button directly under the title took
+     * over the screen before you'd seen a single session. It moves in beside
+     * the Available-slots chip instead, right-aligned and compact.
+     *
+     * The button is MOVED rather than duplicated: one element, one click
+     * handler, nothing to keep in sync, and no chance of two buttons being
+     * visible at once. Re-run on breakpoint changes so rotating a tablet
+     * puts it back.
+     */
+    (function placeNewSessionButton(){
+      var btn = document.getElementById('openNewSession');
+      var home = document.querySelector('.new-slot');
+      var filters = document.getElementById('filters');
+      if (!btn || !home || !filters) return;
+      var mq = window.matchMedia('(max-width: 640px)');
+      function place(){
+        if (mq.matches){
+          if (btn.parentNode !== filters) filters.appendChild(btn);
+          btn.classList.add('new-session-inline');
+        } else {
+          if (btn.parentNode !== home) home.appendChild(btn);
+          btn.classList.remove('new-session-inline');
+        }
+      }
+      place();
+      if (mq.addEventListener) mq.addEventListener('change', place);
+      else if (mq.addListener) mq.addListener(place);   // older WebKit
+    })();
 
     document.getElementById('openNewSession').addEventListener('click', function(){
       if (!STATE.user){
