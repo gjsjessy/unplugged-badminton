@@ -198,13 +198,26 @@
     .chip[aria-pressed="true"]{background:var(--ink); border-color:var(--ink); color:var(--bg);}
     .chip .chip-count{font-weight:600; opacity:.75;}
 
-    .grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(300px,1fr)); gap:16px;}
+    .grid{
+      display:grid; grid-template-columns:repeat(auto-fill, minmax(300px,1fr)); gap:16px;
+      /* lets the cards ask how wide their GRID is, which is what decides
+         whether they're sitting side by side — see the @container below */
+      container-type:inline-size;
+    }
     .card{
       background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
       box-shadow:var(--shadow); padding:18px; display:flex; flex-direction:column; gap:12px;
-      /* fixed so switching to the Waitlist tab never resizes the card */
+      /* Fixed height so cards sharing a row line up, and so switching to the
+         Waitlist tab never resizes one. Undone below when there's only one
+         card per row, where it just adds empty space and more scrolling. */
       height:510px;
     }
+    .roster-more{
+      display:none; width:100%; margin-top:8px; background:none; border:none;
+      color:var(--accent); font-family:inherit; font-weight:700; font-size:13px;
+      padding:10px 0; border-top:1px solid var(--line); text-align:center;
+    }
+
     .card.is-past{opacity:.72;}
     .card.is-cancelled{border-color:var(--danger);}
     .card-head{display:flex; justify-content:space-between; gap:10px; align-items:flex-start;}
@@ -246,6 +259,29 @@
     }
     .roster-scroll::-webkit-scrollbar{width:6px;}
     .roster-scroll::-webkit-scrollbar-thumb{background:var(--line); border-radius:99px;}
+
+    /* ---- one card per row: hug the content ----
+       Two columns need 300+300+16 = 616px of grid, so below that there is
+       exactly one card per row, and a fixed height only wastes space and adds
+       scrolling. The roster then caps at 6 rows with a Show-all toggle rather
+       than becoming a small scrollable box inside a tall card.
+       Placed AFTER the .card and .roster-scroll rules above on purpose: these
+       are overrides, and equal-specificity rules are decided by order. */
+    @container (max-width: 615px){
+      .card{height:auto;}
+      .roster-scroll{overflow-y:visible; flex:0 0 auto;}
+      .roster-pane:not(.expanded) .roster-list li:nth-child(n+7){display:none;}
+      .roster-more{display:block;}
+    }
+    /* Same rule for browsers without container-query support. Kept at 620px,
+       well inside the one-column range, so it can never disagree with the
+       query above in the band where two columns still fit. */
+    @media (max-width: 620px){
+      .card{height:auto;}
+      .roster-scroll{overflow-y:visible; flex:0 0 auto;}
+      .roster-pane:not(.expanded) .roster-list li:nth-child(n+7){display:none;}
+      .roster-more{display:block;}
+    }
 
     /* owner-only ⋯ menu */
     .kebab-wrap{position:relative; flex-shrink:0;}
@@ -1106,6 +1142,8 @@
     var AUTH_MODE = 'login';
     /** Which roster tab each card is showing, kept across refreshes. */
     var CARD_TAB = {};
+    /** Which rosters have been expanded past the first 6, likewise kept. */
+    var ROSTER_OPEN = {};
 
     // ---------- token storage ----------
     function loadToken(){ try { return localStorage.getItem('badmintonToken') || ''; } catch(e){ return ''; } }
@@ -1971,6 +2009,18 @@
       area.querySelectorAll('.edit-session').forEach(function(b){
         b.addEventListener('click', function(){ openEditSession(b.getAttribute('data-id')); });
       });
+      area.querySelectorAll('.roster-more').forEach(function(b){
+        b.addEventListener('click', function(){
+          var pane = document.getElementById('pane-' + b.getAttribute('data-pane-id'));
+          if (!pane) return;
+          var open = pane.classList.toggle('expanded');
+          var total = pane.querySelectorAll('.roster-list li').length;
+          b.textContent = open ? 'Show fewer' : 'Show all ' + total;
+          // Remembered, so the background refresh doesn't fold it back up
+          // while someone is reading the list.
+          ROSTER_OPEN[b.getAttribute('data-pane-id')] = open;
+        });
+      });
       area.querySelectorAll('.card-tab').forEach(function(t){
         t.addEventListener('click', function(){
           var id = t.getAttribute('data-card'), pane = t.getAttribute('data-pane');
@@ -2039,12 +2089,24 @@
       // Confirmed / Waitlist live in tabs inside the card; the chosen tab is
       // remembered per session so the 20-second refresh doesn't reset it.
       var tab = CARD_TAB[s.id] === 'waitlist' && s.waitlist.length ? 'waitlist' : 'confirmed';
-      var confirmedHtml = s.confirmed.length
-        ? '<ul class="roster-list">' + s.confirmed.map(function(p,i){ return renderRosterItem(p,i,readOnly); }).join('') + '</ul>'
-        : '<div class="empty-row">No one yet — be the first to join.</div>';
-      var waitlistHtml = s.waitlist.length
-        ? '<ul class="roster-list">' + s.waitlist.map(function(p,i){ return renderRosterItem(p,i,readOnly); }).join('') + '</ul>'
-        : '<div class="empty-row">No one waiting.</div>';
+      // Past the 6th name the rest are folded away behind a toggle, but ONLY
+      // where the CSS above un-fixes the card height (one card per row).
+      // Sharing a row, the card keeps its fixed height and the roster scrolls
+      // as before, so this button stays hidden there.
+      var ROSTER_VISIBLE = 6;
+      function rosterBlock(list, emptyText, paneId){
+        if (!list.length) return '<div class="empty-row">' + emptyText + '</div>';
+        var html = '<ul class="roster-list">' +
+          list.map(function(p,i){ return renderRosterItem(p,i,readOnly); }).join('') + '</ul>';
+        if (list.length > ROSTER_VISIBLE){
+          html += '<button type="button" class="roster-more" data-pane-id="' + esc(paneId) + '">' +
+            (ROSTER_OPEN[paneId] ? 'Show fewer' : 'Show all ' + list.length) + '</button>';
+        }
+        return html;
+      }
+      var confirmedHtml = rosterBlock(s.confirmed,
+        'No one yet — be the first to join.', s.id + '-confirmed');
+      var waitlistHtml = rosterBlock(s.waitlist, 'No one waiting.', s.id + '-waitlist');
 
       var tabsHtml =
         '<div class="card-tabs">' +
@@ -2056,9 +2118,11 @@
 
       var panesHtml =
         '<div class="roster-scroll">' +
-          '<div class="roster-pane" data-card="'+esc(s.id)+'" data-pane="confirmed"' +
+          '<div class="roster-pane' + (ROSTER_OPEN[s.id + '-confirmed'] ? ' expanded' : '') +
+            '" id="pane-'+esc(s.id)+'-confirmed" data-card="'+esc(s.id)+'" data-pane="confirmed"' +
             (tab === 'confirmed' ? '' : ' hidden') + '>' + confirmedHtml + '</div>' +
-          '<div class="roster-pane" data-card="'+esc(s.id)+'" data-pane="waitlist"' +
+          '<div class="roster-pane' + (ROSTER_OPEN[s.id + '-waitlist'] ? ' expanded' : '') +
+            '" id="pane-'+esc(s.id)+'-waitlist" data-card="'+esc(s.id)+'" data-pane="waitlist"' +
             (tab === 'waitlist' ? '' : ' hidden') + '>' + waitlistHtml + '</div>' +
         '</div>';
 
@@ -2066,10 +2130,21 @@
         ? '<div class="reason-box"><b>Cancelled by '+esc(s.organiser)+':</b> '+esc(s.cancelReason)+'</div>'
         : '';
 
+      // Editing sits on the card itself, not only inside the ⋯ menu: it is
+      // something an organiser does often, and an action hidden behind a
+      // three-dot icon reads as "not available" to anyone who doesn't think
+      // to tap it. The ⋯ menu keeps the rare, destructive ones.
+      var canEdit = s.canManage && !s.isCancelled && !s.isPast;
+      var editBtn = canEdit
+        ? '<button class="btn btn-ghost edit-session" data-id="'+esc(s.id)+'" ' +
+            'style="flex:0 0 auto; padding:13px 16px; font-size:14.5px;">Edit</button>'
+        : '';
+
       var actions = '';
       if (inProgress){
         actions = '<div class="card-actions">' +
-          '<div class="closed-note">Sign-ups closed — this session has started.</div>' +
+          '<div class="closed-note" style="flex:1 1 auto;">Sign-ups closed — this session has started.</div>' +
+          editBtn +
         '</div>';
       } else if (!s.isCancelled && !s.isPast){
         // already in? the button's job is adding a guest, not joining again
@@ -2078,8 +2153,9 @@
         actions = '<div class="card-actions">' +
           '<button class="btn ' + ((isFull || inAlready) ? 'btn-ghost' : 'btn-primary') + ' join-toggle" ' +
             'data-id="'+esc(s.id)+'" data-label="'+esc(label)+'" ' +
-            'style="width:100%; justify-content:center; padding:13px 18px; font-size:14.5px;">' +
+            'style="flex:1 1 auto; min-width:140px; justify-content:center; padding:13px 18px; font-size:14.5px;">' +
             joinLabel + '</button>' +
+          editBtn +
         '</div>';
       }
 
@@ -2089,9 +2165,7 @@
             '<div class="kebab-menu" id="menu-'+esc(s.id)+'">' +
               (s.isCancelled
                 ? '<button class="reactivate-session" data-id="'+esc(s.id)+'" data-label="'+esc(label)+'">Reinstate session</button>'
-                : (s.isPast ? '' :
-                    '<button class="edit-session" data-id="'+esc(s.id)+'">Edit session…</button>') +
-                  '<button class="danger cancel-session" data-id="'+esc(s.id)+'" data-label="'+esc(label)+'">Cancel session…</button>') +
+                : '<button class="danger cancel-session" data-id="'+esc(s.id)+'" data-label="'+esc(label)+'">Cancel session…</button>') +
             '</div></div>'
         : '';
 
