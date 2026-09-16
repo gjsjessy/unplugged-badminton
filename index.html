@@ -185,13 +185,30 @@
       .topbar{
         grid-template-columns:1fr auto;
         grid-template-areas:"brand auth" "new new";
+        /* The second row is where New session used to live. It is moved into
+           the filter row now and the empty slot is collapsed, but the grid
+           still applied its 8px ROW gap to a row with nothing in it — 8px of
+           pinned header, invisible and paid for on every screen. */
+        row-gap:0;
       }
-      /* once you start scrolling, drop the tagline so the pinned header
-         gives the list back as much of the screen as possible */
-      .appbar.compact{padding-top:10px;}
+      /* Once you start scrolling, the pinned header is pure overhead: every
+         pixel of it is a pixel of the list you cannot see. So it sheds the
+         tagline and tightens right up.
+
+         The title-to-tabs gap was NOT margin. The account button is ~42px
+         tall, which makes the top row taller than the 19px title, and with
+         align-items:start the title sat at the top leaving ~20px of dead
+         space beneath it. Centring the row and trimming the button is what
+         actually closes that gap. */
+      .appbar.compact{padding-top:6px;}
       .appbar.compact .brand p{display:none;}
-      .appbar.compact .brand h1{font-size:19px;}
-      .appbar.compact .topbar{margin-bottom:8px;}
+      .appbar.compact .brand h1{font-size:18px; line-height:1.2; margin:0;}
+      .appbar.compact .topbar{margin-bottom:2px; align-items:center;}
+      .appbar.compact .account-btn{padding:3px;}
+      .appbar.compact .avatar{width:30px; height:30px; font-size:12.5px;}
+      .appbar.compact #loginBtn{padding:7px 12px; font-size:12.5px;}
+      /* one chip and a button don't need 62px of room */
+      .appbar.compact .filters{padding:6px 0 8px;}
       /* New session moves down beside the Available-slots chip (see
          placeNewSessionButton) instead of taking a full-width row of its
          own, which dominated the screen on a phone. :empty means the row
@@ -210,7 +227,11 @@
       .tabbar{display:block;}
       .tabs{border-bottom:1.5px solid var(--line); margin-bottom:0; gap:0;}
       .tabs .tab{flex:1 1 0; text-align:center; padding:9px 4px;}
-      .filters{padding:10px 0 12px;}
+      .filters{padding:8px 0 10px;}
+      .appbar{padding-top:12px;}
+      .topbar{margin-bottom:8px;}
+      /* 18px of blank above the first card is a lot on a short screen */
+      #sessionsArea{padding-top:10px !important;}
     }
     .chip{
       background:var(--surface); border:1.5px solid var(--line); color:var(--muted);
