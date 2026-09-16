@@ -478,7 +478,6 @@
     .tg-who .avatar{width:36px; height:36px; border-radius:50%; background:var(--slate); color:#fff;
       display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; flex:0 0 auto;}
     .tg-who b{font-size:14px;} .tg-who span{display:block; font-size:12px; color:var(--muted);}
-    .tg-choices{display:flex; flex-direction:column; gap:8px;}
   </style>
   <!--
     Telegram Mini App bridge. Harmless in a normal browser: the script simply
@@ -490,7 +489,7 @@
 </head>
 <body>
   <!-- carries ?reset=<token> from a password-reset email into the page -->
-  <div id="bootData" data-reset-token="" hidden></div>
+  <div id="bootData" data-reset-token="<?= resetToken ?>" hidden></div>
 
   <div class="wrap">
    <div class="appbar">
@@ -564,21 +563,37 @@
 
       <!-- Shown only when the app was opened from Telegram and this Telegram
            account isn't attached to a player yet. -->
+      <!-- First open from Telegram, unlinked: one form, not a choice. Enter
+           the email you'd use here — an existing one is matched by
+           password and linked; a new one creates the account. -->
       <div class="tg-panel" id="tgPanel" hidden>
         <div class="tg-who">
           <div class="avatar" id="tgAvatar">T</div>
           <div><b id="tgName">Telegram user</b><span id="tgHandle"></span></div>
         </div>
-        <p class="hint" id="tgBlurb" style="margin:0 0 10px;">
-          First time here. Link this Telegram account once and you'll be signed in
-          automatically from now on.
+        <p class="hint" style="margin:0 0 10px;">
+          First time here. Enter your email and password — if you've used this
+          app before we'll link Telegram to that account, otherwise we'll set
+          one up.
         </p>
-        <div class="tg-choices">
-          <button type="button" class="btn btn-primary" id="tgNewBtn"
-            style="width:100%; justify-content:center;">Create my player</button>
-          <button type="button" class="btn btn-ghost" id="tgLinkBtn"
-            style="width:100%; justify-content:center;">I already have an account</button>
-        </div>
+        <form id="tgForm">
+          <div class="field">
+            <label for="tg_name">Your name</label>
+            <input type="text" id="tg_name" autocomplete="name">
+          </div>
+          <div class="field">
+            <label for="tg_email">Email</label>
+            <input type="email" id="tg_email" autocomplete="email" required>
+          </div>
+          <div class="field">
+            <label for="tg_password">Password</label>
+            <input type="password" id="tg_password" autocomplete="current-password" required>
+            <span class="hint">New here? This sets your password — you can use it to log in from a browser too.</span>
+          </div>
+          <p class="form-err" id="tgErr"></p>
+          <button class="btn btn-primary" type="submit" id="tgSubmit"
+            style="width:100%; justify-content:center;">Continue</button>
+        </form>
       </div>
       <form id="authForm">
         <div class="field" id="authNameField" hidden>
@@ -772,7 +787,7 @@
     // In the copy you upload to your static host (Cloudflare Pages, GitHub
     // Pages…), paste your Apps Script /exec URL between the quotes. That is
     // how the Telegram-hosted page reaches your Sheet.
-    var API_URL = 'https://script.google.com/macros/s/AKfycbwIDxRqxfzVjls0WN3Wl4KIOyzHm48jKYk0O9xYP2tb44iKvRr8CL_3aQHfPjLBU5sa/exec';
+    var API_URL = '';
     // ⬆⬆  nothing else differs between the two copies  ⬆⬆
     // ============================================================
 
@@ -1034,24 +1049,6 @@
       var onOk = function(res){ btn.disabled = false; loginSucceeded(res); };
       var onErr = function(err){ btn.disabled = false; showErr('authErr', err.message); };
 
-      // Opened from Telegram and they chose "I already have an account": the
-      // same email + password form attaches this Telegram account instead of
-      // starting an ordinary session. One time only — after this it's silent.
-      if (TG_LINK_MODE && insideTelegram){
-        google.script.run
-          .withSuccessHandler(function(res){
-            btn.disabled = false;
-            TG_LINK_MODE = false;
-            document.getElementById('tgPanel').hidden = true;
-            document.getElementById('authSubmit').textContent = 'Log in';
-            loginSucceeded(res);
-            showToast('Linked — Telegram will sign you in from now on.');
-          })
-          .withFailureHandler(onErr)
-          .linkTelegramToAccount(TG_DATA, { email: email, password: password });
-        return;
-      }
-
       if (AUTH_MODE === 'signup') google.script.run.withSuccessHandler(onOk).withFailureHandler(onErr).signUp(payload);
       else google.script.run.withSuccessHandler(onOk).withFailureHandler(onErr).logIn(payload);
     });
@@ -1072,82 +1069,80 @@
       } catch (e) {}
     }
 
-    /** Offer the link/create choice for a Telegram account we don't know yet. */
+    /** Show the combined email+password form for a Telegram account we don't know yet. */
     function showTelegramLink(tg){
-      TG_PENDING = tg;
       document.getElementById('tgAvatar').textContent = initials(tg.name);
       document.getElementById('tgName').textContent = tg.name;
       document.getElementById('tgHandle').textContent = tg.username ? '@' + tg.username : '';
+      document.getElementById('tg_name').value = tg.name;
       document.getElementById('tgPanel').hidden = false;
       openAuth('login');
-      // The email form stays available underneath, but collapsed by default so
-      // the two Telegram buttons are the obvious path.
-      setTelegramFormVisible(false);
-    }
-
-    function setTelegramFormVisible(show){
+      // Collapsed AFTER openAuth, since setAuthMode (which openAuth calls)
+      // un-hides authForgotRow itself — hiding first would just get undone.
+      // The ordinary email login stays reachable underneath (in case they'd
+      // rather not use Telegram at all), just collapsed so the Telegram form
+      // is the obvious path.
       ['authForm', 'authSwap', 'authForgotRow'].forEach(function(id){
         var el = document.getElementById(id);
-        if (el) el.hidden = !show;
+        if (el) el.hidden = true;
       });
     }
 
-    var TG_PENDING = null;
-
+    /**
+     * Fires once on load, opened from Telegram. Whichever way it resolves,
+     * it is also the ONLY thing that refreshes the session list for this
+     * path — init() deliberately skips its own blind refresh() when this is
+     * about to run, so a Telegram open costs one listSessions call, not two.
+     * (Telegram's Mini App webview doesn't reliably keep localStorage
+     * between opens, so this runs on most opens, not just the very first —
+     * the saved-for-later win from cutting the duplicate is real.)
+     */
     function tgAutoLogin(){
-      if (!insideTelegram) return;
+      if (!insideTelegram){ refresh(); return; }
       google.script.run
         .withSuccessHandler(function(res){
-          if (!res) return;
-          if (res.needsLink){ showTelegramLink(res.telegram); return; }
-          loginSucceeded(res);
+          if (!res){ refresh(); return; }
+          if (res.needsLink){ showTelegramLink(res.telegram); refresh(); return; }
+          loginSucceeded(res); // refreshes internally
         })
         .withFailureHandler(function(err){
           // Telegram sign-in not configured, or verification failed. Say so
           // once and leave the ordinary email login working.
           showToast(err.message, true);
-          setTelegramFormVisible(true);
+          refresh();
         })
         .logInWithTelegram(TG_DATA);
     }
 
-    function wireTelegramButtons(){
-      var newBtn = document.getElementById('tgNewBtn');
-      var linkBtn = document.getElementById('tgLinkBtn');
-      if (!newBtn || !linkBtn) return;
-
-      newBtn.addEventListener('click', function(){
-        if (!TG_PENDING) return;
-        newBtn.disabled = true; linkBtn.disabled = true;
-        hideErr('authErr');
+    function wireTelegramForm(){
+      var form = document.getElementById('tgForm');
+      if (!form) return;
+      form.addEventListener('submit', function(ev){
+        ev.preventDefault();
+        var btn = document.getElementById('tgSubmit');
+        var payload = {
+          name: document.getElementById('tg_name').value.trim(),
+          email: document.getElementById('tg_email').value.trim(),
+          password: document.getElementById('tg_password').value
+        };
+        hideErr('tgErr');
+        btn.disabled = true;
         google.script.run
           .withSuccessHandler(function(res){
-            newBtn.disabled = false; linkBtn.disabled = false;
+            btn.disabled = false;
             document.getElementById('tgPanel').hidden = true;
-            setTelegramFormVisible(true);
             loginSucceeded(res);
-            showToast('Welcome! Add your phone number under your name when you get a chance.');
+            showToast(res.created
+              ? 'Welcome! Add your phone number under your name when you get a chance.'
+              : 'Linked — Telegram will sign you in from now on.');
           })
           .withFailureHandler(function(err){
-            newBtn.disabled = false; linkBtn.disabled = false;
-            showErr('authErr', err.message);
+            btn.disabled = false;
+            showErr('tgErr', err.message);
           })
-          .signUpWithTelegram(TG_DATA, { name: TG_PENDING.name });
-      });
-
-      // Reveal the email form; submitting it LINKS rather than logs in.
-      linkBtn.addEventListener('click', function(){
-        TG_LINK_MODE = true;
-        setTelegramFormVisible(true);
-        document.getElementById('tgBlurb').textContent =
-          'Enter the email and password you already use, just this once.';
-        document.getElementById('authSubmit').textContent = 'Link my account';
-        var el = document.getElementById('au_email');
-        if (el) el.focus();
+          .completeTelegramAccount(TG_DATA, payload);
       });
     }
-
-    var TG_LINK_MODE = false;
 
     function setUser(user){
       STATE.user = user;
@@ -2046,7 +2041,7 @@
     (function init(){
       setAuthMode('login');
       tgInit();
-      wireTelegramButtons();
+      wireTelegramForm();
 
       // Arriving from a password-reset email? Go straight to the new-password step.
       var boot = document.getElementById('bootData');
@@ -2078,14 +2073,18 @@
           else {
             clearToken(); TOKEN = '';
             // Saved login gone stale — inside Telegram we can silently get a
-            // fresh one instead of showing a login screen.
-            tgAutoLogin();
+            // fresh one instead of showing a login screen. tgAutoLogin (or
+            // the plain-browser fallback below) refreshes on its own, so
+            // this path must not ALSO fire the blind refresh() below it.
+            insideTelegram ? tgAutoLogin() : refresh();
           }
-        }).withFailureHandler(function(){}).me(TOKEN);
+        }).withFailureHandler(function(){ refresh(); }).me(TOKEN);
+        refresh(); // parallel: shows sessions immediately while me() confirms who's viewing
+      } else if (insideTelegram){
+        tgAutoLogin(); // refreshes once it resolves — see tgAutoLogin's own comment
       } else {
-        tgAutoLogin();
+        refresh();
       }
-      refresh();
       setInterval(function(){ refresh(true); }, 20000);
     })();
   </script>
