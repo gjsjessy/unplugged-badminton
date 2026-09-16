@@ -779,16 +779,18 @@
 
   <script>
     // ============================================================
-    // ⬇⬇  THE ONE LINE TO EDIT IN THE TELEGRAM-HOSTED COPY  ⬇⬇
+    // ONE file, good in BOTH places — there is no second copy to keep
+    // straight, and nothing here to edit unless the URL below changes.
     //
-    // Leave it empty in the copy you paste into Apps Script — served from
-    // there, the page talks to the server directly and ignores this.
+    // Served from GitHub Pages: google.script.run doesn't exist, so the shim
+    // below takes over and POSTs to this URL.
+    // Served from Apps Script /exec: google.script.run DOES exist, the shim
+    // stands aside, and this URL is never read.
     //
-    // In the copy you upload to your static host (Cloudflare Pages, GitHub
-    // Pages…), paste your Apps Script /exec URL between the quotes. That is
-    // how the Telegram-hosted page reaches your Sheet.
-    var API_URL = '';
-    // ⬆⬆  nothing else differs between the two copies  ⬆⬆
+    // This is your web app's /exec URL. Deploy > Manage deployments > pencil
+    // > New version keeps it the same, so redeploying never touches this. It
+    // only changes if you create a brand-new deployment instead.
+    var API_URL = 'https://script.google.com/macros/s/AKfycbwIDxRqxfzVjls0WN3Wl4KIOyzHm48jKYk0O9xYP2tb44iKvRr8CL_3aQHfPjLBU5sa/exec';
     // ============================================================
 
     /**
