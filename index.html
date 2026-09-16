@@ -530,6 +530,85 @@
       padding-left:11px; border-left:2px solid var(--line);}
     .tg-cases b{color:var(--ink); display:block;}
 
+    /* ---- bottom sheets (date / time / dropdown on touch + narrow) ----
+       A native date input renders as a cramped desktop calendar in a narrow
+       window — which is what the Telegram desktop app is — and native select
+       menus give no hint they're tappable. These sheets come up from the
+       bottom edge, where a thumb already is, with targets sized for fingers. */
+    .sheet-backdrop{
+      position:fixed; inset:0; background:rgba(16,16,18,.55);
+      z-index:90; opacity:0; pointer-events:none; transition:opacity .2s ease;
+    }
+    .sheet-backdrop.open{opacity:1; pointer-events:auto;}
+    .sheet{
+      position:fixed; left:0; right:0; bottom:0; z-index:91;
+      background:var(--surface); border-radius:18px 18px 0 0;
+      box-shadow:0 -12px 40px -16px rgba(0,0,0,.45);
+      transform:translateY(102%); transition:transform .24s ease;
+      max-height:88vh; display:flex; flex-direction:column;
+      padding-bottom:calc(10px + env(safe-area-inset-bottom, 0px));
+    }
+    .sheet.open{transform:translateY(0);}
+    @media (prefers-reduced-motion: reduce){
+      .sheet, .sheet-backdrop{transition:none;}
+    }
+    .sheet-grip{width:42px; height:4px; border-radius:99px; background:var(--line);
+      margin:8px auto 4px; flex:0 0 auto;}
+    .sheet-title{font-family:'Poppins', sans-serif; font-weight:700; font-size:16px;
+      padding:6px 18px 12px; flex:0 0 auto;}
+    .sheet-body{overflow-y:auto; padding:0 18px; flex:1 1 auto; -webkit-overflow-scrolling:touch;}
+    .sheet-actions{display:flex; gap:10px; padding:12px 18px 0; flex:0 0 auto;
+      border-top:1px solid var(--line);}
+    .sheet-actions .btn{flex:1 1 0; justify-content:center; min-height:48px;}
+
+    .opt-row{
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      width:100%; padding:15px 2px; background:none; border:none;
+      border-bottom:1px solid var(--line); font-size:16px; font-family:inherit;
+      color:var(--ink); text-align:left; min-height:52px;
+    }
+    .opt-row:last-child{border-bottom:none;}
+    .opt-row[aria-selected="true"]{color:var(--accent); font-weight:700;}
+    .opt-row .tick{color:var(--accent); font-weight:700;}
+
+    .cal-head{display:flex; align-items:center; justify-content:space-between;
+      gap:8px; padding:2px 0 12px;}
+    .cal-head b{font-size:15px;}
+    .cal-nav{background:none; border:1.5px solid var(--line); border-radius:10px;
+      width:40px; height:40px; color:var(--ink); font-size:16px; line-height:1;}
+    .cal-nav:disabled{opacity:.35;}
+    .cal-grid{display:grid; grid-template-columns:repeat(7, 1fr); gap:3px;}
+    .cal-dow{font-size:11px; font-weight:700; color:var(--muted); text-align:center;
+      padding-bottom:6px;}
+    .cal-day{
+      border:none; background:none; border-radius:50%; font-family:inherit;
+      font-size:15px; color:var(--ink); min-height:44px; padding:0;
+    }
+    .cal-day:disabled{opacity:.28;}
+    .cal-day.blank{visibility:hidden;}
+    .cal-day.today{box-shadow:inset 0 0 0 1.5px var(--accent); font-weight:700;}
+    .cal-day.sel{background:var(--accent); color:#fff; font-weight:700; box-shadow:none;}
+
+    .time-cols{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+    .time-col{border:1.5px solid var(--line); border-radius:12px; overflow:hidden;}
+    .time-col-head{font-size:11px; font-weight:700; color:var(--muted);
+      text-align:center; padding:8px 0; background:var(--bg);}
+    .time-scroll{max-height:40vh; overflow-y:auto; -webkit-overflow-scrolling:touch;}
+    .time-opt{display:block; width:100%; padding:13px 0; background:none; border:none;
+      font-family:inherit; font-size:16px; color:var(--ink); text-align:center; min-height:46px;}
+    .time-opt[aria-selected="true"]{background:var(--accent); color:#fff; font-weight:700;}
+
+    /* A field the sheet drives: styled like an input, but it's a button, so
+       it gets a clear tappable affordance instead of a bare native control. */
+    .picker-btn{
+      width:100%; text-align:left; font-family:inherit; font-size:16px;
+      padding:12px; min-height:46px; border-radius:8px; border:1.5px solid var(--line);
+      background:var(--surface); color:var(--ink);
+      display:flex; align-items:center; justify-content:space-between; gap:8px;
+    }
+    .picker-btn .chev{color:var(--muted); font-size:12px; flex:0 0 auto;}
+    .picker-btn.empty{color:var(--muted);}
+
     /* ---- linked account row (My details) ---- */
     .linked-account{margin-top:16px; padding-top:14px; border-top:1px solid var(--line);}
     .linked-head{font-size:11.5px; font-weight:700; letter-spacing:.04em;
@@ -766,7 +845,7 @@
   <div class="modal-backdrop" id="sessionModalBackdrop">
     <div class="modal">
       <button class="modal-close" data-close="sessionModalBackdrop">Close ✕</button>
-      <h2>Post a new session</h2>
+      <h2 id="sessionModalTitle">Post a new session</h2>
       <p class="hint" id="sessionOwnerNote"></p>
       <form id="sessionForm">
         <div class="row2">
@@ -795,10 +874,20 @@
         </div>
         <div class="field">
           <label for="s_level">Level</label>
-          <select id="s_level"></select>
+          <!-- Seeded here on purpose. These used to arrive only from
+               bootstrap(), so a slow or failed boot left the dropdown
+               completely empty with no way to pick a level. bootstrap still
+               replaces them if the server's list ever differs. -->
+          <select id="s_level">
+            <option value="Open to all">Open to all</option>
+            <option value="Beginner">Beginner</option>
+            <option value="Intermediate">Intermediate</option>
+            <option value="Advanced">Advanced</option>
+            <option value="Intermediate &amp; Advanced">Intermediate &amp; Advanced</option>
+          </select>
         </div>
         <p class="form-err" id="sessionFormErr"></p>
-        <button class="btn btn-primary" type="submit" style="width:100%; justify-content:center;">Post session</button>
+        <button class="btn btn-primary" type="submit" id="sessionSubmitBtn" style="width:100%; justify-content:center;">Post session</button>
       </form>
     </div>
   </div>
@@ -899,6 +988,68 @@
      */
     (function installApiShim(){
       if (window.google && window.google.script && window.google.script.run) return;
+
+      /**
+       * Calls that only READ, and so are safe to send again after a dropped
+       * connection. Anything that WRITES is deliberately absent: the server
+       * may well have applied the change before the reply went missing, so a
+       * silent retry could book the same player twice or post a session
+       * twice. A failed write is reported instead, for the person to redo.
+       */
+      var RETRYABLE = {
+        bootstrap: 1, me: 1, listSessions: 1, accountStatus: 1,
+        getMyPanel: 1, getMyGames: 1, getMySessions: 1
+      };
+      var MAX_TRIES = 3;
+
+      function newRequestId(){
+        try {
+          if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+        } catch (e) {}
+        return String(Date.now()) + '-' + Math.random().toString(36).slice(2, 12);
+      }
+
+      function once(fn, args, requestId){
+        return fetch(API_URL, {
+          method: 'POST',
+          // text/plain deliberately: it keeps this a "simple" cross-origin
+          // request so the browser sends no OPTIONS preflight, which Apps
+          // Script has no way to answer. The body is still JSON.
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ fn: fn, args: args, requestId: requestId }),
+          redirect: 'follow'
+        }).then(function(r){
+          // A 5xx is Google having a moment, and worth another go; the
+          // wrapper decides. Flagged so it's distinguishable from a genuine
+          // application error, which must never be retried.
+          if (r.status >= 500){
+            var e = new Error('The server is busy — trying again.');
+            e.transient = true;
+            throw e;
+          }
+          return r.text();
+        }).then(function(text){
+          var data;
+          try { data = JSON.parse(text); }
+          catch (e) {
+            var pe = new Error('Couldn\'t reach the server — try again in a moment.');
+            pe.transient = true;   // usually an error page, not our JSON
+            throw pe;
+          }
+          if (data.error) throw new Error(data.error);  // real answer: never retry
+          return data.result;
+        }, function(netErr){
+          // fetch() only rejects when the request never completed — offline,
+          // DNS, timeout, connection reset. Always worth one more attempt.
+          var e = new Error(navigator.onLine === false
+            ? 'You appear to be offline.'
+            : 'Couldn\'t reach the server — try again in a moment.');
+          e.transient = true;
+          e.cause = netErr;
+          throw e;
+        });
+      }
+
       function call(fn, args){
         if (!API_URL){
           // Nothing to talk to — this copy was uploaded without its API_URL
@@ -906,21 +1057,21 @@
           return Promise.reject(new Error(
             'This copy of the app is missing its API_URL — see the top of the file.'));
         }
-        return fetch(API_URL, {
-          method: 'POST',
-          // text/plain deliberately: it keeps this a "simple" cross-origin
-          // request so the browser sends no OPTIONS preflight, which Apps
-          // Script has no way to answer. The body is still JSON.
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ fn: fn, args: args }),
-          redirect: 'follow'
-        }).then(function(r){ return r.text(); }).then(function(text){
-          var data;
-          try { data = JSON.parse(text); }
-          catch (e) { throw new Error('Couldn\'t reach the server — try again in a moment.'); }
-          if (data.error) throw new Error(data.error);
-          return data.result;
-        });
+        var tries = RETRYABLE[fn] ? MAX_TRIES : 1;
+        // One id for the whole action, not per attempt — and the browser
+        // replays the identical body, so a socket-level replay carries this
+        // same id and the server recognises it as the same action. Reads
+        // don't need one and must not send one (see readOnlyFunctions_).
+        var requestId = RETRYABLE[fn] ? '' : newRequestId();
+        function attempt(n){
+          return once(fn, args, requestId).catch(function(err){
+            if (n >= tries || !err.transient) throw err;
+            // Backs off so a struggling backend isn't hammered: 0.6s, 1.2s.
+            return new Promise(function(res){ setTimeout(res, 600 * n); })
+              .then(function(){ return attempt(n + 1); });
+          });
+        }
+        return attempt(1);
       }
 
       // Rebuilt on each .withXHandler() call so the chain stays immutable,
@@ -943,7 +1094,13 @@
     })();
 
     var STATE = {
-      sessions: [], playerLevels: [], sessionLevels: [], maxSlots: 4,
+      // Defaults that match the server's, so every dropdown is usable before
+      // — or without — a successful bootstrap() call.
+      sessions: [],
+      playerLevels: ['Beginner', 'Intermediate', 'Advanced'],
+      sessionLevels: ['Open to all', 'Beginner', 'Intermediate', 'Advanced',
+        'Intermediate & Advanced'],
+      maxSlots: 4,
       user: null, tab: 'open', drawerTab: 'games', filterAvailable: false
     };
     var AUTH_MODE = 'login';
@@ -1673,7 +1830,15 @@
     }
 
     // ================= main list =================
-    function refresh(silent){
+    /**
+     * @param silent  don't surface a failure as a toast (background polls)
+     * @param done    called with (true) if the server recognised TOKEN and
+     *                returned a viewer, (false) otherwise. This is why the
+     *                boot no longer calls me(): listSessions already answers
+     *                "who is this?" as part of the same round trip, and on
+     *                this backend a round trip costs seconds.
+     */
+    function refresh(silent, done){
       google.script.run
         .withSuccessHandler(function(data){
           STATE.sessions = data.sessions;
@@ -1681,12 +1846,48 @@
           else if (STATE.user) setUser(null);
           render();
           if (drawerIsOpen()) refreshPanelQuietly();
+          if (done) done(!!data.viewer);
         })
         .withFailureHandler(function(err){
           if (!silent) showToast('Could not load sessions: ' + err.message, true);
+          if (done) done(false, err);
         })
         .listSessions(TOKEN);
     }
+
+    /**
+     * Background refresh, paced for this backend.
+     *
+     * Every call costs a couple of seconds of Apps Script execution time,
+     * and a Google account has a fixed daily allowance of it. The old fixed
+     * 20-second poll spent that allowance on pages nobody was looking at —
+     * a phone with the app merely backgrounded kept polling all day — and
+     * once the allowance runs out, calls start failing outright, which shows
+     * up as "can't connect" hours later and seemingly at random.
+     *
+     * So nothing polls while the page is hidden, the interval is far longer,
+     * and returning to the page refreshes at once — which is the moment
+     * freshness actually matters to someone.
+     */
+    var POLL_MS = 120000;
+    var pollTimer = null;
+    function startPolling(){
+      if (pollTimer) return;
+      pollTimer = setInterval(function(){
+        if (document.hidden) return;   // belt and braces
+        refresh(true);
+      }, POLL_MS);
+    }
+    function stopPolling(){
+      if (!pollTimer) return;
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+    document.addEventListener('visibilitychange', function(){
+      if (document.hidden){ stopPolling(); return; }
+      refresh(true);      // catch up on whatever changed while away
+      startPolling();
+    });
 
     document.getElementById('chipAvailable').addEventListener('click', function(){
       STATE.filterAvailable = !STATE.filterAvailable;
@@ -1766,6 +1967,9 @@
       });
       area.querySelectorAll('.reactivate-session').forEach(function(b){
         b.addEventListener('click', function(){ openReactivate(b.getAttribute('data-id'), b.getAttribute('data-label')); });
+      });
+      area.querySelectorAll('.edit-session').forEach(function(b){
+        b.addEventListener('click', function(){ openEditSession(b.getAttribute('data-id')); });
       });
       area.querySelectorAll('.card-tab').forEach(function(t){
         t.addEventListener('click', function(){
@@ -1885,7 +2089,9 @@
             '<div class="kebab-menu" id="menu-'+esc(s.id)+'">' +
               (s.isCancelled
                 ? '<button class="reactivate-session" data-id="'+esc(s.id)+'" data-label="'+esc(label)+'">Reinstate session</button>'
-                : '<button class="danger cancel-session" data-id="'+esc(s.id)+'" data-label="'+esc(label)+'">Cancel session…</button>') +
+                : (s.isPast ? '' :
+                    '<button class="edit-session" data-id="'+esc(s.id)+'">Edit session…</button>') +
+                  '<button class="danger cancel-session" data-id="'+esc(s.id)+'" data-label="'+esc(label)+'">Cancel session…</button>') +
             '</div></div>'
         : '';
 
@@ -1967,6 +2173,294 @@
         .catch(function(){ locResultsEl.classList.remove('open'); });
     }
 
+    // ================= bottom-sheet pickers =================
+    /**
+     * Finger-friendly date / time / dropdown pickers for touch and narrow
+     * windows.
+     *
+     * Design rule: the ORIGINAL input stays in the form and stays the single
+     * source of truth. The sheet is only another way to edit it, and writes
+     * back by setting .value and firing a real 'change' event. So required,
+     * min, form submission and the duration<->end-time syncing all keep
+     * working exactly as they did, and none of that logic had to learn about
+     * sheets. The native control is hidden behind a button of our own rather
+     * than removed, which is also why a failure here can't strand a field.
+     *
+     * Applied when the pointer is coarse OR the window is narrow — the
+     * second half matters because the Telegram desktop app is a narrow
+     * window with a mouse, and that's where the cramped calendar appeared.
+     */
+    var USE_SHEETS = (function(){
+      try {
+        return window.matchMedia('(pointer: coarse)').matches ||
+               window.innerWidth <= 820;
+      } catch (e) { return window.innerWidth <= 820; }
+    })();
+
+    var SHEET = { backdrop: null, el: null, onSet: null };
+
+    function buildSheetShell(){
+      if (SHEET.el) return;
+      var bd = document.createElement('div');
+      bd.className = 'sheet-backdrop';
+      var sh = document.createElement('div');
+      sh.className = 'sheet';
+      sh.setAttribute('role', 'dialog');
+      sh.setAttribute('aria-modal', 'true');
+      sh.innerHTML =
+        '<div class="sheet-grip"></div>' +
+        '<div class="sheet-title" id="sheetTitle"></div>' +
+        '<div class="sheet-body" id="sheetBody"></div>' +
+        '<div class="sheet-actions">' +
+          '<button type="button" class="btn btn-quiet" id="sheetCancel">Cancel</button>' +
+          '<button type="button" class="btn btn-primary" id="sheetSet">Set</button>' +
+        '</div>';
+      document.body.appendChild(bd);
+      document.body.appendChild(sh);
+      SHEET.backdrop = bd; SHEET.el = sh;
+      bd.addEventListener('click', closeSheet);
+      sh.querySelector('#sheetCancel').addEventListener('click', closeSheet);
+      sh.querySelector('#sheetSet').addEventListener('click', function(){
+        if (SHEET.onSet) SHEET.onSet();
+        closeSheet();
+      });
+      document.addEventListener('keydown', function(e){
+        if (e.key === 'Escape' && sheetIsOpen()) closeSheet();
+      });
+    }
+    function sheetIsOpen(){ return !!(SHEET.el && SHEET.el.classList.contains('open')); }
+
+    function openSheet(title, bodyEl, onSet, opts){
+      buildSheetShell();
+      opts = opts || {};
+      SHEET.onSet = onSet || null;
+      SHEET.el.querySelector('#sheetTitle').textContent = title;
+      var body = SHEET.el.querySelector('#sheetBody');
+      body.innerHTML = '';
+      body.appendChild(bodyEl);
+      // A list sheet commits on tap, so a Set button would be a dead control.
+      SHEET.el.querySelector('#sheetSet').hidden = !!opts.hideSet;
+      if (sheetIsOpen()) return;              // already up: just re-fill it
+      SHEET.backdrop.classList.add('open');
+      SHEET.el.classList.add('open');
+      lockPageScroll();
+    }
+    function closeSheet(){
+      if (!sheetIsOpen()) return;
+      SHEET.el.classList.remove('open');
+      SHEET.backdrop.classList.remove('open');
+      SHEET.onSet = null;
+      unlockPageScroll();
+    }
+
+    /** Writes to the real input and lets every existing listener react. */
+    function commitTo(input, value){
+      input.value = value;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      refreshPickerButton(input);
+    }
+
+    // ---------- the button that stands in for a native control ----------
+    var PICKERS = [];   // {input, btn, kind, format}
+
+    function refreshPickerButton(input){
+      PICKERS.forEach(function(p){
+        if (p.input !== input) return;
+        var txt = p.format(input.value);
+        p.btn.querySelector('.val').textContent = txt || p.placeholder;
+        p.btn.classList.toggle('empty', !txt);
+      });
+    }
+    function syncPickerLabels(){
+      PICKERS.forEach(function(p){ refreshPickerButton(p.input); });
+    }
+
+    function attachPicker(input, kind, placeholder, format, open){
+      if (!input) return;
+      var btn = document.createElement('button');
+      btn.type = 'button';            // never submits the form
+      btn.className = 'picker-btn';
+      btn.innerHTML = '<span class="val"></span><span class="chev" aria-hidden="true">▾</span>';
+      btn.setAttribute('aria-haspopup', 'dialog');
+      if (input.id) btn.setAttribute('aria-label', input.id);
+      input.parentNode.insertBefore(btn, input);
+      // Hidden, not removed: it is still the form's field and still holds
+      // the value that gets submitted.
+      input.style.display = 'none';
+      PICKERS.push({ input: input, btn: btn, kind: kind,
+        format: format, placeholder: placeholder });
+      btn.addEventListener('click', function(){ open(input); });
+      refreshPickerButton(input);
+    }
+
+    // ---------- formatting ----------
+    var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var DOW = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+    function fmtDateVal(v){
+      var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || '');
+      if (!m) return '';
+      var d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+      // The year is dropped for the current year: it pushed the label onto a
+      // second line in the half-width Date column, and the sheet's own header
+      // shows the month and year anyway.
+      var sameYear = m[1] === todayStr().slice(0, 4);
+      return DOW[d.getUTCDay()] + ', ' + (+m[3]) + ' ' + MONTHS[+m[2] - 1] +
+        (sameYear ? '' : ' ' + m[1]);
+    }
+    function fmtTimeVal(v){
+      var m = /^(\d{1,2}):(\d{2})/.exec(v || '');
+      if (!m) return '';
+      var h = +m[1], ap = h < 12 ? 'AM' : 'PM', h12 = h % 12 === 0 ? 12 : h % 12;
+      return h12 + ':' + m[2] + ' ' + ap;
+    }
+
+    // ---------- date sheet ----------
+    function openDateSheet(input){
+      var min = input.min || '';
+      var sel = /^\d{4}-\d{2}-\d{2}$/.test(input.value) ? input.value : (min || todayStr());
+      var view = { y: +sel.slice(0, 4), m: +sel.slice(5, 7) - 1 };
+      var picked = sel;
+
+      var wrap = document.createElement('div');
+      function draw(){
+        var first = new Date(Date.UTC(view.y, view.m, 1));
+        var days = new Date(Date.UTC(view.y, view.m + 1, 0)).getUTCDate();
+        var lead = first.getUTCDay();
+        var pad = function(n){ return String(n).padStart(2, '0'); };
+        var cells = '';
+        for (var i = 0; i < lead; i++) cells += '<button type="button" class="cal-day blank" disabled></button>';
+        for (var d = 1; d <= days; d++){
+          var val = view.y + '-' + pad(view.m + 1) + '-' + pad(d);
+          var disabled = min && val < min;
+          cells += '<button type="button" class="cal-day' +
+            (val === picked ? ' sel' : '') + (val === todayStr() ? ' today' : '') +
+            '" data-val="' + val + '"' + (disabled ? ' disabled' : '') + '>' + d + '</button>';
+        }
+        // Don't offer months entirely before the minimum date.
+        var prevLast = view.y + '-' + pad(view.m) + '-31';
+        wrap.innerHTML =
+          '<div class="cal-head">' +
+            '<button type="button" class="cal-nav" data-step="-1"' +
+              (min && prevLast < min ? ' disabled' : '') + '>‹</button>' +
+            '<b>' + MONTHS[view.m] + ' ' + view.y + '</b>' +
+            '<button type="button" class="cal-nav" data-step="1">›</button>' +
+          '</div>' +
+          '<div class="cal-grid">' +
+            DOW.map(function(d){ return '<div class="cal-dow">' + d + '</div>'; }).join('') +
+            cells +
+          '</div>';
+        wrap.querySelectorAll('.cal-nav').forEach(function(b){
+          b.addEventListener('click', function(){
+            view.m += +b.getAttribute('data-step');
+            if (view.m < 0){ view.m = 11; view.y--; }
+            if (view.m > 11){ view.m = 0; view.y++; }
+            draw();
+          });
+        });
+        wrap.querySelectorAll('.cal-day[data-val]').forEach(function(b){
+          b.addEventListener('click', function(){
+            picked = b.getAttribute('data-val');
+            draw();
+          });
+        });
+      }
+      draw();
+      openSheet('Pick a date', wrap, function(){ commitTo(input, picked); });
+    }
+
+    // ---------- time sheet ----------
+    function openTimeSheet(input){
+      var cur = /^(\d{1,2}):(\d{2})/.exec(input.value || '');
+      var h = cur ? +cur[1] : 19, mi = cur ? +cur[2] : 0;
+      mi = Math.round(mi / 5) * 5; if (mi > 55) mi = 55;
+
+      var wrap = document.createElement('div');
+      wrap.className = 'time-cols';
+      function col(head, items, isSel, onPick){
+        var c = document.createElement('div');
+        c.className = 'time-col';
+        c.innerHTML = '<div class="time-col-head">' + head + '</div>' +
+          '<div class="time-scroll">' + items.map(function(it){
+            return '<button type="button" class="time-opt" data-v="' + it.v + '"' +
+              (isSel(it.v) ? ' aria-selected="true"' : '') + '>' + it.label + '</button>';
+          }).join('') + '</div>';
+        c.querySelectorAll('.time-opt').forEach(function(b){
+          b.addEventListener('click', function(){ onPick(+b.getAttribute('data-v')); });
+        });
+        return c;
+      }
+      function draw(){
+        wrap.innerHTML = '';
+        var hours = [];
+        for (var i = 0; i < 24; i++){
+          hours.push({ v: i, label: (i % 12 === 0 ? 12 : i % 12) + ' ' + (i < 12 ? 'AM' : 'PM') });
+        }
+        var mins = [];
+        for (var k = 0; k < 60; k += 5) mins.push({ v: k, label: String(k).padStart(2, '0') });
+        wrap.appendChild(col('Hour', hours, function(v){ return v === h; },
+          function(v){ h = v; draw(); scrollSelected(); }));
+        wrap.appendChild(col('Minute', mins, function(v){ return v === mi; },
+          function(v){ mi = v; draw(); scrollSelected(); }));
+      }
+      function scrollSelected(){
+        wrap.querySelectorAll('.time-opt[aria-selected="true"]').forEach(function(el){
+          var box = el.parentNode;
+          box.scrollTop = el.offsetTop - box.clientHeight / 2 + el.offsetHeight / 2;
+        });
+      }
+      draw();
+      openSheet('Pick a time', wrap, function(){
+        commitTo(input, String(h).padStart(2, '0') + ':' + String(mi).padStart(2, '0'));
+      });
+      setTimeout(scrollSelected, 40);
+    }
+
+    // ---------- dropdown sheet ----------
+    function openSelectSheet(select){
+      var wrap = document.createElement('div');
+      function draw(){
+        wrap.innerHTML = '';
+        Array.prototype.forEach.call(select.options, function(o){
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'opt-row';
+          if (o.value === select.value) b.setAttribute('aria-selected', 'true');
+          b.innerHTML = '<span>' + esc(o.textContent) + '</span>' +
+            (o.value === select.value ? '<span class="tick">✓</span>' : '');
+          b.addEventListener('click', function(){
+            commitTo(select, o.value);
+            closeSheet();
+          });
+          wrap.appendChild(b);
+        });
+      }
+      draw();
+      // Tapping an option IS the choice, so there's no Set button to press.
+      openSheet(select.getAttribute('data-sheet-title') || 'Choose', wrap, null,
+        { hideSet: true });
+    }
+
+    function installPickers(){
+      if (!USE_SHEETS) return;
+      attachPicker(document.getElementById('s_date'), 'date',
+        'Pick a date', fmtDateVal, openDateSheet);
+      attachPicker(document.getElementById('s_start'), 'time',
+        'Start time', fmtTimeVal, openTimeSheet);
+      attachPicker(document.getElementById('s_end'), 'time',
+        'End time', fmtTimeVal, openTimeSheet);
+      var lvl = document.getElementById('s_level');
+      if (lvl){
+        lvl.setAttribute('data-sheet-title', 'Level');
+        attachPicker(lvl, 'select', 'Choose a level',
+          function(v){
+            var o = lvl.querySelector('option[value="' + (v || '').replace(/"/g, '\\"') + '"]');
+            return o ? o.textContent : v;
+          }, openSelectSheet);
+      }
+    }
+
     // ---- start time + duration <-> end time, kept in sync both ways ----
     var startEl = document.getElementById('s_start');
     var durEl = document.getElementById('s_duration');
@@ -2025,6 +2519,40 @@
     }
 
     // ================= new session =================
+    /**
+     * null while posting a new session, or the id of the one being edited.
+     * The same form serves both so the two can't drift apart in layout or
+     * validation.
+     */
+    var EDIT_SID = null;
+
+    function setSessionFormMode(session){
+      EDIT_SID = session ? session.id : null;
+      document.getElementById('sessionModalTitle').textContent =
+        session ? 'Edit session' : 'Post a new session';
+      document.getElementById('sessionSubmitBtn').textContent =
+        session ? 'Save changes' : 'Post session';
+      document.getElementById('sessionOwnerNote').textContent = session
+        ? 'Everyone signed up is emailed if the time, place or price changes.'
+        : '';
+    }
+
+    /**
+     * The date and time inputs need YYYY-MM-DD and HH:MM, but a session
+     * arrives carrying display strings ("Tue, 15 Sep", "7:00 PM") plus the
+     * real instants. Deriving from the instants in Singapore time keeps the
+     * form agreeing with what the server stored, wherever the phone thinks
+     * it is. Singapore is UTC+8 and has never used daylight saving.
+     */
+    function sgtFormParts(ms){
+      var d = new Date(ms + 8 * 60 * 60 * 1000);
+      var p = function(n){ return String(n).padStart(2, '0'); };
+      return {
+        date: d.getUTCFullYear() + '-' + p(d.getUTCMonth() + 1) + '-' + p(d.getUTCDate()),
+        time: p(d.getUTCHours()) + ':' + p(d.getUTCMinutes())
+      };
+    }
+
     document.getElementById('openNewSession').addEventListener('click', function(){
       if (!STATE.user){
         showToast('Log in first — sessions are tied to your account so only you can cancel them.');
@@ -2033,42 +2561,91 @@
       }
       hideErr('sessionFormErr');
       document.getElementById('sessionForm').reset();
+      setSessionFormMode(null);
       document.getElementById('s_date').min = todayStr();
       durEl.value = '2';
       setCapturedAddress('');
+      syncPickerLabels();
       openModal('sessionModalBackdrop');
     });
+
+    function openEditSession(id){
+      var s = (STATE.sessions || []).filter(function(x){ return x.id === id; })[0];
+      if (!s){ showToast('Couldn\'t find that session — pull to refresh.', true); return; }
+      hideErr('sessionFormErr');
+      document.getElementById('sessionForm').reset();
+      setSessionFormMode(s);
+
+      var st = sgtFormParts(s.startMs), en = sgtFormParts(s.endMs);
+      document.getElementById('s_date').min = todayStr();
+      document.getElementById('s_date').value = st.date;
+      document.getElementById('s_start').value = st.time;
+      document.getElementById('s_end').value = en.time;
+      document.getElementById('s_court').value = s.court || '';
+      document.getElementById('s_location').value = s.location || '';
+      document.getElementById('s_price').value =
+        (s.pricePerPax === '' || s.pricePerPax == null) ? '' : s.pricePerPax;
+      document.getElementById('s_pax').value = s.paxRequired || '';
+      document.getElementById('s_level').value = s.level || 'Open to all';
+      // Keep the saved address, so leaving the location untouched doesn't
+      // silently drop the map link.
+      setCapturedAddress(s.locationAddress || '');
+      applyEnd();          // fills Duration in from start/end
+      syncPickerLabels();
+      openModal('sessionModalBackdrop');
+    }
 
     document.getElementById('sessionForm').addEventListener('submit', function(e){
       e.preventDefault();
       var btn = e.target.querySelector('button[type=submit]');
+      var editing = EDIT_SID;
       btn.disabled = true;
-      google.script.run
-        .withSuccessHandler(function(){
+      var payload = {
+        date: document.getElementById('s_date').value,
+        start: document.getElementById('s_start').value,
+        end: document.getElementById('s_end').value,
+        location: document.getElementById('s_location').value,
+        locationAddress: document.getElementById('s_locationAddress').value,
+        court: document.getElementById('s_court').value,
+        pricePerPax: document.getElementById('s_price').value,
+        paxRequired: document.getElementById('s_pax').value,
+        level: document.getElementById('s_level').value
+      };
+
+      var runner = google.script.run
+        .withSuccessHandler(function(res){
           btn.disabled = false;
           closeModal('sessionModalBackdrop');
           document.getElementById('sessionForm').reset();
-          showToast('Session posted 🏸');
-          STATE.tab = 'open';
-          document.querySelectorAll('#tabs .tab').forEach(function(x){ x.classList.remove('active'); });
-          document.getElementById('tabOpen').classList.add('active');
+          setSessionFormMode(null);
+          if (editing){
+            // Say whether anyone was emailed — an organiser wants to know
+            // whether their tweak just pinged twelve inboxes.
+            var n = (res && res.notified) || 0;
+            showToast(n
+              ? 'Saved — ' + n + (n === 1 ? ' person' : ' people') + ' emailed about the change.'
+              : 'Saved. Nothing changed that was worth emailing about.');
+          } else {
+            showToast('Session posted 🏸');
+            STATE.tab = 'open';
+            document.querySelectorAll('#tabs .tab').forEach(function(x){ x.classList.remove('active'); });
+            document.getElementById('tabOpen').classList.add('active');
+          }
+          MY_PANEL = { games: null, sessions: null };
           refresh(true);
+          if (drawerIsOpen()) loadDrawer(true);
         })
         .withFailureHandler(function(err){
           btn.disabled = false;
           if (!handleAuthError(err)) showErr('sessionFormErr', err.message);
-        })
-        .createSession(TOKEN, {
-          date: document.getElementById('s_date').value,
-          start: document.getElementById('s_start').value,
-          end: document.getElementById('s_end').value,
-          location: document.getElementById('s_location').value,
-          locationAddress: document.getElementById('s_locationAddress').value,
-          court: document.getElementById('s_court').value,
-          pricePerPax: document.getElementById('s_price').value,
-          paxRequired: document.getElementById('s_pax').value,
-          level: document.getElementById('s_level').value
         });
+
+      if (editing){
+        payload.sessionId = editing;
+        runner.editSession(TOKEN, payload);
+      } else {
+        runner.createSession(TOKEN, payload);
+      }
     });
 
     // ================= join with slots =================
@@ -2295,6 +2872,7 @@
     // ================= boot =================
     (function init(){
       setAuthMode('login');
+      installPickers();
       tgInit();
       wireTelegramForm();
 
@@ -2318,23 +2896,30 @@
         STATE.playerLevels = cfg.playerLevels;
         STATE.sessionLevels = cfg.sessionLevels;
         STATE.maxSlots = cfg.maxSlots;
-        document.getElementById('s_level').innerHTML =
-          cfg.sessionLevels.map(function(l){ return '<option value="'+esc(l)+'">'+esc(l)+'</option>'; }).join('');
-      }).withFailureHandler(function(){}).bootstrap();
+        // Only overwrite when the server actually sent a list — otherwise
+        // the seeded options above are better than none.
+        if (cfg && cfg.sessionLevels && cfg.sessionLevels.length){
+          document.getElementById('s_level').innerHTML = cfg.sessionLevels
+            .map(function(l){ return '<option value="'+esc(l)+'">'+esc(l)+'</option>'; }).join('');
+        }
+      }).withFailureHandler(function(){
+        // Non-fatal: the seeded defaults cover it. Logged rather than
+        // toasted, so a blip at boot isn't shouted at the user.
+        console.warn('bootstrap() failed; using built-in level defaults.');
+      }).bootstrap();
 
       if (TOKEN){
-        google.script.run.withSuccessHandler(function(user){
-          if (user) setUser(user);
-          else {
-            clearToken(); TOKEN = '';
-            // Saved login gone stale — inside Telegram we can silently get a
-            // fresh one instead of showing a login screen. tgAutoLogin (or
-            // the plain-browser fallback below) refreshes on its own, so
-            // this path must not ALSO fire the blind refresh() below it.
-            insideTelegram ? tgAutoLogin() : refresh();
-          }
-        }).withFailureHandler(function(){ refresh(); }).me(TOKEN);
-        refresh(); // parallel: shows sessions immediately while me() confirms who's viewing
+        // ONE call: listSessions(TOKEN) returns both the sessions and who
+        // the token belongs to, so the separate me() that used to run
+        // alongside it was a whole extra round trip for information already
+        // on its way.
+        refresh(false, function(recognised){
+          if (recognised) return;
+          // Saved login is stale. Inside Telegram we can quietly get a fresh
+          // one; in a browser the login button is already right there.
+          clearToken(); TOKEN = '';
+          if (insideTelegram) tgAutoLogin();
+        });
       } else if (insideTelegram){
         tgAutoLogin(); // refreshes once it resolves — see tgAutoLogin's own comment
       } else {
@@ -2346,7 +2931,7 @@
           showToast('Telegram didn\'t send sign-in data. Close the app fully and reopen it.', true);
         }
       }
-      setInterval(function(){ refresh(true); }, 20000);
+      if (!document.hidden) startPolling();
     })();
   </script>
 </body>
