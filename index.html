@@ -1204,7 +1204,32 @@
     // the user out of it — it just forwards it, and the server verifies the
     // signature with the bot token before believing a word of it.
     var TG = (window.Telegram && window.Telegram.WebApp) || null;
-    var TG_DATA = (TG && TG.initData) ? String(TG.initData) : '';
+
+    /**
+     * The signed blob, from whichever source actually has it.
+     *
+     * Telegram delivers it in the page's URL fragment as tgWebAppData, and
+     * telegram-web-app.js is simply the thing that parses that fragment into
+     * TG.initData. So when that script fails to load — blocked, offline, or
+     * just slow — window.Telegram is undefined and the page used to decide it
+     * wasn't running inside Telegram at all, silently falling back to the
+     * email login with no sign-in prompt and no error. Reading the fragment
+     * ourselves removes that single point of failure.
+     *
+     * Decoded by hand rather than with URLSearchParams, which would turn a
+     * literal '+' into a space and corrupt the blob's signature.
+     */
+    function tgDataFromHash(){
+      try {
+        var m = String(location.hash || '').match(/[#&]tgWebAppData=([^&]*)/);
+        return m ? decodeURIComponent(m[1]) : '';
+      } catch (e) { return ''; }
+    }
+    var TG_DATA = (TG && TG.initData) ? String(TG.initData) : tgDataFromHash();
+
+    // Either source having data means we're in Telegram. TG existing without
+    // data does too — that's the SDK present but the launch carrying none,
+    // which is worth reporting rather than treating as a browser visit.
     var insideTelegram = !!TG_DATA;
 
     function tgInit(){
@@ -2314,6 +2339,12 @@
         tgAutoLogin(); // refreshes once it resolves — see tgAutoLogin's own comment
       } else {
         refresh();
+        // The Telegram SDK is here but the launch carried no signed data.
+        // Silence would look exactly like the sign-in prompt disappearing,
+        // so name it — reopening the app is usually all it takes.
+        if (TG){
+          showToast('Telegram didn\'t send sign-in data. Close the app fully and reopen it.', true);
+        }
       }
       setInterval(function(){ refresh(true); }, 20000);
     })();
