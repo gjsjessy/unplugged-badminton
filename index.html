@@ -619,6 +619,12 @@
     .drawer-section-title{
       font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
       color:var(--muted); margin:2px 0 10px;
+      display:flex; align-items:baseline; gap:8px;
+    }
+    /* "last 90 days" beside a History heading: present, but not shouting. */
+    .section-note{
+      font-weight:600; letter-spacing:0; text-transform:none; opacity:.75;
+      font-size:10.5px;
     }
     .drawer-section + .drawer-section{margin-top:22px; padding-top:18px; border-top:1px solid var(--line);}
     .dg{
@@ -1280,6 +1286,9 @@
       sessionLevels: ['Open to all', 'Beginner', 'Intermediate', 'Advanced',
         'Intermediate & Advanced'],
       maxSlots: 4,
+      // How far back history goes. Matches HISTORY_DAYS on the server; it is
+      // re-read from bootstrap() so the two can never drift apart.
+      historyDays: 90,
       user: null, tab: 'open', drawerTab: 'games', filterAvailable: false
     };
     /** Which roster tab each card is showing, kept across refreshes. */
@@ -2055,7 +2064,8 @@
           ? data.upcoming.map(function(g){ return renderGameGroup(g, true); }).join('')
           : '<div class="empty-row">Nothing coming up.</div>') + '</div>';
       if (data.past.length){
-        html += '<div class="drawer-section"><div class="drawer-section-title">History (' + data.past.length + ')</div>' +
+        html += '<div class="drawer-section"><div class="drawer-section-title">History (' + data.past.length + ')' +
+          '<span class="section-note">last ' + STATE.historyDays + ' days</span></div>' +
           data.past.map(function(g){ return renderGameGroup(g, false); }).join('') + '</div>';
       }
       body.innerHTML = html;
@@ -2104,7 +2114,8 @@
         (data.upcoming.length ? data.upcoming.map(renderSessionRow).join('') : '<div class="empty-row">Nothing coming up.</div>') +
         '</div>';
       if (data.past.length){
-        html += '<div class="drawer-section"><div class="drawer-section-title">History (' + data.past.length + ')</div>' +
+        html += '<div class="drawer-section"><div class="drawer-section-title">History (' + data.past.length + ')' +
+          '<span class="section-note">last ' + STATE.historyDays + ' days</span></div>' +
           data.past.map(renderSessionRow).join('') + '</div>';
       }
       body.innerHTML = html;
@@ -2125,9 +2136,37 @@
      *                "who is this?" as part of the same round trip, and on
      *                this backend a round trip costs seconds.
      */
+    /**
+     * Guards against overlapping session fetches.
+     *
+     * Every call down this pipe costs a couple of seconds, and there are
+     * several independent things that ask for a refresh: the background
+     * poll, coming back to a hidden tab, signing in, joining, editing.
+     * Without a guard they stack up, and two problems follow — the obvious
+     * one (several slow calls at once, so all of them get slower) and a
+     * nastier one: replies can arrive out of order, so a slow older reply
+     * lands after a fast newer one and puts the OLD list back on screen.
+     * That reads as the app losing a change that plainly worked.
+     *
+     * So: a background poll that arrives while a fetch is already running
+     * is dropped, because the running one will answer with data at least as
+     * fresh. Anything user-driven still goes out, but only the newest reply
+     * is allowed to touch the screen. Late replies still run their `done`
+     * callback — boot depends on it — they just don't repaint.
+     */
+    var LIST_SEQ = 0;
+    var LIST_IN_FLIGHT = 0;
+
     function refresh(silent, done){
+      if (LIST_IN_FLIGHT && silent && !done) return;
+      var seq = ++LIST_SEQ;
+      LIST_IN_FLIGHT++;
       google.script.run
         .withSuccessHandler(function(data){
+          LIST_IN_FLIGHT--;
+          // A newer request has already been issued: this reply is stale,
+          // so it must not overwrite what is on screen.
+          if (seq !== LIST_SEQ){ if (done) done(!!(data && data.viewer)); return; }
           STATE.sessions = data.sessions;
           if (data.viewer) setUser(data.viewer);
           else if (STATE.user) setUser(null);
@@ -2138,6 +2177,8 @@
           if (done) done(!!data.viewer);
         })
         .withFailureHandler(function(err){
+          LIST_IN_FLIGHT--;
+          if (seq !== LIST_SEQ){ if (done) done(false, err); return; }
           // Nothing on screen and nothing cached: say so where the list
           // would be, rather than leaving a skeleton pulsing forever.
           if (!LIST_LOADED){
@@ -2251,7 +2292,8 @@
 
       if (!list.length){
         area.innerHTML = '<div class="empty-state">' + (STATE.tab !== 'open'
-          ? 'Nothing here yet — cancelled and past sessions show up in this tab.'
+          ? 'Nothing here yet — cancelled sessions, and sessions played in the last '
+            + STATE.historyDays + ' days, show up in this tab.'
           : (STATE.filterAvailable
               ? 'Every open session is full right now. Turn off “Available slots” to see them all, or join a waitlist.'
               : 'No open sessions right now. Post one with “+ New session”.')) + '</div>';
@@ -3272,6 +3314,7 @@
         STATE.playerLevels = cfg.playerLevels;
         STATE.sessionLevels = cfg.sessionLevels;
         STATE.maxSlots = cfg.maxSlots;
+        if (cfg.historyDays > 0) STATE.historyDays = cfg.historyDays;
         // Only overwrite when the server actually sent a list — otherwise
         // the seeded options above are better than none.
         if (cfg && cfg.sessionLevels && cfg.sessionLevels.length){
