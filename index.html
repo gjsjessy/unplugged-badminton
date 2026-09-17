@@ -1242,9 +1242,11 @@
         function attempt(n){
           return once(fn, args, requestId).catch(function(err){
             if (n >= tries || !err.transient) throw err;
-            // Spaced past the ~2.3s a call actually takes, so a retry does
-            // not pile onto an attempt that is still running: 2.5s, 5s.
-            return new Promise(function(res){ setTimeout(res, 2500 * n); })
+            // 1s, then 2s. This was 2.5s/5s back when a retry landing on a
+            // still-running attempt got refused — the server now waits for
+            // that twin and hands back its answer, so the long pause bought
+            // nothing and made every transient blip feel like a stall.
+            return new Promise(function(res){ setTimeout(res, 1000 * n); })
               .then(function(){ return attempt(n + 1); });
           });
         }
